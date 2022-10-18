@@ -4,7 +4,7 @@ const fs = require('fs')
 
 function createWindow() {
     const win = new BrowserWindow({
-        width: 800,
+        width: 1200,
         height: 600,
         webPreferences: {
             nodeIntegration: true,
@@ -13,9 +13,10 @@ function createWindow() {
         }
     })
 
+    win.webContents.openDevTools();
     win.loadFile('src/index.html')
     // Open the DevTools.
-    win.webContents.openDevTools();
+
 }
 
 app.whenReady().then(() => {
