@@ -10,8 +10,6 @@ const fs = require("fs");
 const tty = require("tty");
 const crypto = require("crypto");
 const os = require("os");
-const jsdom = require("jsdom");
-const { JSDOM } = jsdom;
 // Importing dialog module using remote
 // const dialog = electron.remote.dialog;
 
@@ -26,10 +24,6 @@ var fcpxLibraries = [];
 var fcpxBackups = [];
 var verbose = 1;
 
-function scanAddError(path, err) {
-    console.error(path + ": " + err);
-    scanErrors.push(path + ":" + err);
-}
 
 function formattedText(type, message, color = "none") {
     var texte = "                    ".substring(0, 15 - type.length) + type + ": " + message;
@@ -48,18 +42,20 @@ function formattedText(type, message, color = "none") {
 
 function trace(type, message) {
     if (verbose > 1) {
-        console.log(formattedText(type, message, "green"));
+        process.stdout.write(formattedText(type, message, "green") + "\n");
     }
 }
 
 function notice(type, message) {
     if (verbose > 0) {
-        console.log(formattedText(type, message));
+        //console.log(formattedText(type, message));
+        process.stdout.write(formattedText(type, message) + "\n");
     }
 }
 
 function warning(type, message) {
-    console.warn(formattedText(type, message, "red"));
+    // console.warn(formattedText(type, message, "red"));
+    process.stdout.write(formattedText(type, message, "red") + "\n");
 }
 
 function isVideoFile(path) {
@@ -77,8 +73,8 @@ function scanPList(path) {
     var data = {};
     // var xmlData = fs.readFileSync(path, "utf8");
 
-    const xml2js = require("xml2js");
-    var json;
+    // const xml2js = require("xml2js");
+    // var json;
     try {
         var fileData = fs.readFileSync(path, "ascii");
         var sax = require("sax"),
@@ -185,7 +181,7 @@ function registerLibrary(path) {
             try {
                 var library = scanPList(path + "/Settings.plist");
                 library.events = [];
-                library.name = path.replace(/.*\//, '').replace(/\.fcpbundle$/, '');
+                library.name = path.replace(/.*\//, "").replace(/\.fcpbundle$/, "");
                 library.path = path;
                 var eventDir = fs.readdirSync(path, { withFileTypes: true });
                 eventDir.forEach((ent) => {
@@ -229,7 +225,6 @@ function fileSignature(path) {
     }
 }
 
-
 function registerFile(path) {
     const md5 = fileSignature(path);
     var entry = fileMap[md5] || [];
@@ -249,6 +244,7 @@ function scanDirectories(path) {
         currentScanned = path;
         fs.readdir(path, { withFileTypes: true }, (err, files) => {
             currentScanned = path;
+            promises = [];
             if (err) {
                 warning(err.code, path);
             } else {
@@ -256,7 +252,6 @@ function scanDirectories(path) {
                 // var directories = [];
                 // var files = fs.readdirSync(path, { withFileTypes: true });
                 // console.log(JSON.stringify(files));
-                promises = [];
                 files.forEach((entry) => {
                     var fullPath = path.replace(/\/$/, "") + "/" + entry.name;
                     if (entry.name.match(/^\./)) {
@@ -278,7 +273,10 @@ function scanDirectories(path) {
                         //     entry = fs.statSync(path2);
                         //     fullPath = path2;
                         // }
-                    } else if (fullPath.match(/^\/(Applications|private|dev|Library|System)$/) || fullPath == os.homedir() + '/Library') {
+                    } else if (
+                        fullPath.match(/^\/(Applications|private|dev|Library|System)$/) ||
+                        fullPath == os.homedir() + "/Library"
+                    ) {
                         notice("IGNORE", fullPath);
                     } else if (entry.isDirectory()) {
                         // directories.push(fullPath);
@@ -291,14 +289,16 @@ function scanDirectories(path) {
                 // } catch (err) {
                 //     warning(err.code || err, path);
                 // }
+            }
+            Promise.all(promises).then(() => {
+                // scannedDirectories++;
+                resolve(nbDirectories);
+            }).finally(() => {
+                scannedDirectories++;
                 if (tty.isatty(process.stdout.fd)) {
                     process.stdout.write("\r" + scannedDirectories + "/" + nbDirectories + "...");
                 }
-            }
-            Promise.all(promises).then(() => {
-                scannedDirectories++;
-                resolve(nbDirectories);
-            });
+              });
         });
     });
 }

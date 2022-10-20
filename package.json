@@ -22,10 +22,7 @@
   "dependencies": {
     "bootstrap": "^5.2.2",
     "electron-squirrel-startup": "^1.0.0",
-    "jsdom": "^20.0.1",
-    "sax": "^1.2.4",
-    "xml2js": "^0.4.23",
-    "xml2json": "^0.12.0"
+    "sax": "^1.2.4"
   },
   "resolutions": {
     "nan": "2.16.0"
