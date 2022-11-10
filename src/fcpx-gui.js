@@ -1,6 +1,6 @@
 function diskSize(bytes) {
-    console.log("diskSize("+bytes+")")
-    if (bytes === 0){
+    // console.log("diskSize("+bytes+")")
+    if (bytes === 0) {
         return "0";
     } else if (bytes > 1024 * 1024 * 100) {
         return Number.parseFloat(bytes / 1024 / 1024 / 1024).toFixed(1) + "&nbsp;GB";
@@ -38,12 +38,19 @@ function tag(name, attrs) {
     return html;
 }
 
-var scannerTimer = setInterval(scanShowProgress, 100);
+// var scannerTimer = setInterval(scanShowProgress, 5000);
 
-function scanShowProgress() {
-    console.log("show progres...");
+var nextDisplay = 0;
+
+function resfreshDisplay() {
+    if (nextDisplay > Date.now()) {
+        return;
+    }
+    nextDisplay = Date.now() + 1000;
+
+    // console.log("show progres...");
     var textToDisplay = "All directories scanned.";
-    console.log("progress is " + scannedDirectories + "/" + nbDirectories);
+    // console.log("progress is " + scannedDirectories + "/" + nbDirectories);
     if (nbDirectories > scannedDirectories) {
         var path = "";
         var parts = currentScanned.split("/");
@@ -76,33 +83,32 @@ function scanShowProgress() {
         fcpxLibraries.forEach((lib, index) => {
             var mediaSize = 0;
             var links = 0;
-            lib.events.forEach(e => {
+            lib.events.forEach((e) => {
                 mediaSize += e.size;
                 links += e.links;
-            })
+            });
             html += tag("a", { class: "list-group-item list-group-item-action", id: "library-" + index });
             html += "<b>" + escapeHtml(lib.name) + "</b> <small>(" + lib.events.length + " events)</small> <br>";
             html += "<small>" + escapeHtml(lib.path) + "</small><br>";
-            html += "<small>Transcoded: <b>" + diskSize(lib.proxySize) + '<i class="bi bi-eraser-fill"></i></b>, '
+            html += "<small>Transcoded: <b>" + diskSize(lib.proxySize) + '<i class="bi bi-eraser-fill"></i></b>, ';
             html += "Rendered: <b>" + diskSize(lib.renderSize) + "</b>, ";
-            html +=  "Media: <b>" + diskSize(mediaSize) + "</b>";
-            html +=  (lib.links > 0 ? " ("+ links+" references)" : '');
-            html +=  "</small><br>";
+            html += "Media: <b>" + diskSize(mediaSize) + "</b>";
+            html += lib.links > 0 ? " (" + links + " references)" : "";
+            html += "</small><br>";
             // html += JSON.stringify(lib);
             html += "</a>";
         });
         $("#libraryContents").html(html);
 
-        infos = '';
-        infos += '<table>';
-        infos += '<tr><td>Scanned directories:</td><td>'+ scannedDirectories + '</td></tr>';
-        infos += '<tr><td>Total of directories:</td><td>'+ nbDirectories + '</td></tr>';
-        infos += '<tr><td>Registered files:</td><td>'+ Object.keys(fileMap).length + '</td></tr>';
-        infos += '</table>';
+        infos = "";
+        infos += "<table>";
+        infos += "<tr><td>Scanned directories:</td><td>" + scannedDirectories + "</td></tr>";
+        infos += "<tr><td>Total of directories:</td><td>" + nbDirectories + "</td></tr>";
+        infos += "<tr><td>Registered files:</td><td>" + Object.keys(fileMap).length + "</td></tr>";
+        infos += "</table>";
         $("#informationContents").html(infos);
     }
 }
-
 
 /*
 Promise.all([
@@ -124,17 +130,42 @@ function selectTab(activeTab) {
 }
 
 jQuery(function () {
-    ['library', 'backup', 'information'].forEach(tab => {
+    ["library", "backup", "information"].forEach((tab) => {
         $("#" + tab + "Tab").on("click", function () {
             selectTab(tab);
         });
-    })
+    });
     selectTab("library");
 });
 
+const homedir = require("os").homedir();
+addUserDirectory(homedir + "/Movies");
+addUserDirectory("/Volumes/FinalCutPro");
 
-const homedir = require('os').homedir();
-addUserDirectory(homedir + "/Movies" );
-addUserDirectory("/Volumes/FinalCutPro" );
+function wait(milliseconds) {
+    return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function waitEndOfScan() {
+    var i = 0;
+    while (scannedDirectories < nbDirectories) {
+        while (i < promises.length) {
+            promises[i].then(
+                (result) => {
+                    result.forEach((p) => addUserDirectory(p));
+                    scannedDirectories++;
+                    process.stdout.write("\r" + scannedDirectories + "/" + nbDirectories + "...");
+                    resfreshDisplay();
+                },
+                (err) => {
+                    scannedDirectories++;
+                }
+            );
+            i++;
+        }
+        await wait(1000);
+        console.log("check at " + new Date());
+    }
+}
+
 waitEndOfScan();
-scanShowProgress("DONE");

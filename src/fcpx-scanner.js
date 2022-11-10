@@ -22,7 +22,7 @@ var fileMap = {};
 var extraFiles = [];
 var fcpxLibraries = [];
 var fcpxBackups = [];
-var verbose = 2;
+var verbose = 1;
 
 function formattedText(type, message, color = "none") {
     var texte = "                    ".substring(0, 15 - type.length) + type + ": " + message;
@@ -183,6 +183,15 @@ function scanEventFiles(library, event, path) {
         }
     });
 }
+
+function isFinalCutCache(path) {
+    if (path.match(/\.fcpcache$/)) {
+        var entry = fs.statSync(path);
+        return entry.isDirectory() && fs.existsSync(path + "/info.plist");
+    }
+    return false;
+}
+
 
 function registerLibrary(path) {
     if (path.match(/\.fcpbundle$/)) {
@@ -390,26 +399,13 @@ function addUserDirectory(path) {
     promises.push(scanDirectory(path));
 }
 
-function waitEndOfScan() {
-    var i = 0;
-    while (i < promises.length) {
-        promises[i].then(result => {
-            scanDirectories++;
-            process.stdout.write("\r" + scannedDirectories + "/" + nbDirectories + "...");
-        }, 
-        err => {
-            scanDirectories++;
-        });
-        i++;
-    }
-}
-
 function isValidDirectory(path) {
     return path.match(new RegExp("^/Users/")) || !path.match(new RegExp("^/Volumes"));
 }
 
 function scanDirectory(path) {
     trace("SCAN", path);
+    var pathList = [];
     return new Promise((resolve, reject) => {
         fs.readdir(path, { withFileTypes: true }, (err, files) => {
             currentScanned = path;
@@ -429,10 +425,12 @@ function scanDirectory(path) {
                         registerFile(fullPath);
                     } else if (registerLibrary(fullPath)) {
                         notice("FCPX", fullPath);
+                    } else if (isFinalCutCache(fullPath)) {
+                        notice("CACHE", fullPath);
                     } else if (entry.isSymbolicLink()) {
                         var path2 = fs.readlinkSync(fullPath);
                         if (isValidDirectory(path2)) {
-                            addUserDirectory(path2);
+                            pathList.push(path2);
                         }
                         // while (entry.isSymbolicLink()) {
                         //     var path2 = fs.readlinkSync(fullPath);
@@ -447,10 +445,10 @@ function scanDirectory(path) {
                         notice("IGNORE", fullPath);
                     } else if (entry.isDirectory()) {
                         // directories.push(fullPath);
-                        addUserDirectory(fullPath);
+                        pathList.push(fullPath);
                     }
                 });
-                resolve(path);
+                resolve(pathList);
             }
         });
     });
