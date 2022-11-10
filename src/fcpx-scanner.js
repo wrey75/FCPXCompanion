@@ -22,8 +22,7 @@ var fileMap = {};
 var extraFiles = [];
 var fcpxLibraries = [];
 var fcpxBackups = [];
-var verbose = 1;
-
+var verbose = 2;
 
 function formattedText(type, message, color = "none") {
     var texte = "                    ".substring(0, 15 - type.length) + type + ": " + message;
@@ -51,6 +50,17 @@ function notice(type, message) {
         //console.log(formattedText(type, message));
         process.stdout.write(formattedText(type, message) + "\n");
     }
+}
+
+/**
+ * Rounds to the upper limit in kilobytes (to reflect the usage on the disk rather the
+ * true size of the file). Note 1KB is taken by default but 4K could be better.
+ *
+ * @param {number} the number of bytes
+ * @returns a rounded number of bytes
+ */
+function kilobytes(bytes) {
+    return (Math.floor(+bytes / 2048) + 1) * 2048;
 }
 
 function warning(type, message) {
@@ -145,7 +155,7 @@ function scanPList(path) {
     return data;
 }
 
-function scanEventFiles(library, path) {
+function scanEventFiles(library, event, path) {
     fs.readdir(path, { withFileTypes: true }, (err, files) => {
         if (err) {
             warning(err.code, path);
@@ -156,12 +166,18 @@ function scanEventFiles(library, path) {
                     trace("SYMLINK", path + "/" + e.name + " => " + realPath);
                     var infos = registerFile(realPath);
                     infos.library = library;
+                    infos.event = event;
                     infos.from = path + "/" + e.name;
+                    event.links += 1;
                 } else if (e.isDirectory()) {
-                    scanEventFiles(library, path + "/" + e.name);
+                    // Quite unexepected
+                    console.warn("Found a sub-directory...!");
+                    scanEventFiles(library, event, path + "/" + e.name);
                 } else {
                     var infos = registerFile(path + "/" + e.name);
                     infos.library = library;
+                    infos.event = event;
+                    event.size += kilobytes(infos.size);
                 }
             });
         }
@@ -183,11 +199,32 @@ function registerLibrary(path) {
                 library.events = [];
                 library.name = path.replace(/.*\//, "").replace(/\.fcpbundle$/, "");
                 library.path = path;
+                library.proxySize = 0;
+                library.renderSize = 0;
+                library.mediaSize = 0;
+                library.links = 0;
                 var eventDir = fs.readdirSync(path, { withFileTypes: true });
                 eventDir.forEach((ent) => {
                     if (fs.existsSync(path + "/" + ent.name + "/CurrentVersion.fcpevent")) {
-                        library.events.push(ent.name);
-                        scanEventFiles(library, path + "/" + ent.name + "/Original Media");
+                        var event = {
+                            name: ent.name,
+                            size: 0,
+                            links: 0,
+                            projects: [],
+                        };
+                        scanEventFiles(library, event, path + "/" + ent.name + "/Original Media");
+                        fs.readdir(path + "/" + ent.name, { withFileTypes: true }, (err, files) => {
+                            files.forEach((f) => {
+                                if (fs.existsSync(path + "/" + ent.name + "/" + f.name + "/CurrentVersion.fcpevent")) {
+                                    event.projects.push(f.name);
+                                }
+                            });
+                        });
+                        event.proxySize = directorySize(path + "/" + ent.name + "/Transcoded Media");
+                        event.renderSize = directorySize(path + "/" + ent.name + "/Render Files");
+                        library.events.push(event);
+                        library.renderSize += event.renderSize;
+                        library.proxySize += event.proxySize;
                     }
                 });
                 fcpxLibraries.push(library);
@@ -228,20 +265,61 @@ function fileSignature(path) {
 function registerFile(path) {
     const md5 = fileSignature(path);
     var entry = fileMap[md5] || [];
-    entry.push({
+    const infos = fs.statSync(path);
+    var newEntry = {
         path: path,
         md5: md5,
-    });
+        size: infos.size,
+    };
+    entry.push(newEntry);
     fileMap[md5] = entry;
     trace("REGISTER", md5 + " - " + path + (entry.length > 1 ? " = " + entry[0].path : ""));
-    return entry;
+    return newEntry;
+}
+
+/**
+ * Scan a directory to get the number of bytes
+ *
+ * @param {string} path the path to scan
+ * @returns the number of bytes
+ */
+function directorySize(path) {
+    var size = 0;
+    if (fs.existsSync(path)) {
+        var files = fs.readdirSync(path, { withFileTypes: true });
+        if (files) {
+            files.forEach((entry) => {
+                if (entry.isSymbolicLink()) {
+                    size += kilobytes(0);
+                }
+                if (entry.isDirectory()) {
+                    size += directorySize(path + "/" + entry.name);
+                } else {
+                    var infos = fs.statSync(path + "/" + entry.name);
+                    size += kilobytes(infos.size);
+                }
+            });
+            // console.warn(path + " = " + size);
+        } else {
+            console.warn(path + ": can not read");
+        }
+    } else {
+        console.log(path + ": not found!");
+    }
+    return size;
 }
 
 function scanDirectories(path) {
     nbDirectories++;
     return new Promise((resolve, reject) => {
         trace("SCAN", path);
-        currentScanned = path;
+        if (!path.match(new RegExp("^/Users/")) && !path.match(new RegExp("^/Volumes"))) {
+            console.warn("ILLEGAL", path);
+            scannedDirectories++;
+            resolve(nbDirectories);
+            return;
+        }
+        // currentScanned = path;
         fs.readdir(path, { withFileTypes: true }, (err, files) => {
             currentScanned = path;
             promises = [];
@@ -290,29 +368,90 @@ function scanDirectories(path) {
                 //     warning(err.code || err, path);
                 // }
             }
-            Promise.all(promises).then(() => {
-                // scannedDirectories++;
-                resolve(nbDirectories);
-            }).finally(() => {
-                scannedDirectories++;
-                if (tty.isatty(process.stdout.fd)) {
-                    process.stdout.write("\r" + scannedDirectories + "/" + nbDirectories + "...");
-                }
-              });
+            Promise.all(promises)
+                .then(() => {
+                    // scannedDirectories++;
+                    resolve(nbDirectories);
+                })
+                .finally(() => {
+                    scannedDirectories++;
+                    if (tty.isatty(process.stdout.fd)) {
+                        process.stdout.write("\r" + scannedDirectories + "/" + nbDirectories + "...");
+                    }
+                });
         });
     });
 }
 
-// scanDirectories("/Users/wrey/Movies");
+var promises = [];
 
-// .then(() => {
-//     notice("INFO", "All the directories have been scanned.");
+function addUserDirectory(path) {
+    nbDirectories++;
+    promises.push(scanDirectory(path));
+}
 
-//     // notice("INFO", "All basic files analysed.");
-//    console.log(JSON.stringify(fcpxLibraries, null, 2))
-//    console.log(JSON.stringify(fcpxBackups, null, 2))
-//     extraFiles.forEach((path) => registerFile(path));
-//     console.log(JSON.stringify(fileMap, null, 2))
-// });
+function waitEndOfScan() {
+    var i = 0;
+    while (i < promises.length) {
+        promises[i].then(result => {
+            scanDirectories++;
+            process.stdout.write("\r" + scannedDirectories + "/" + nbDirectories + "...");
+        }, 
+        err => {
+            scanDirectories++;
+        });
+        i++;
+    }
+}
 
-// scanDirectories('/Users/wrey');
+function isValidDirectory(path) {
+    return path.match(new RegExp("^/Users/")) || !path.match(new RegExp("^/Volumes"));
+}
+
+function scanDirectory(path) {
+    trace("SCAN", path);
+    return new Promise((resolve, reject) => {
+        fs.readdir(path, { withFileTypes: true }, (err, files) => {
+            currentScanned = path;
+            if (err) {
+                warning(err.code, path);
+                reject(err);
+            } else {
+                // try {
+                // var directories = [];
+                // var files = fs.readdirSync(path, { withFileTypes: true });
+                // console.log(JSON.stringify(files));
+                files.forEach((entry) => {
+                    var fullPath = path.replace(/\/$/, "") + "/" + entry.name;
+                    if (entry.name.match(/^\./)) {
+                        //console.log("Entry " + fullPath + " ignored.")
+                    } else if (isVideoFile(fullPath) && entry.isFile()) {
+                        registerFile(fullPath);
+                    } else if (registerLibrary(fullPath)) {
+                        notice("FCPX", fullPath);
+                    } else if (entry.isSymbolicLink()) {
+                        var path2 = fs.readlinkSync(fullPath);
+                        if (isValidDirectory(path2)) {
+                            addUserDirectory(path2);
+                        }
+                        // while (entry.isSymbolicLink()) {
+                        //     var path2 = fs.readlinkSync(fullPath);
+                        //     notice("SYMLINK", fullPath + " => " + path2);
+                        //     entry = fs.statSync(path2);
+                        //     fullPath = path2;
+                        // }
+                    } else if (
+                        fullPath.match(/^\/(Applications|private|dev|Library|System)$/) ||
+                        fullPath == os.homedir() + "/Library"
+                    ) {
+                        notice("IGNORE", fullPath);
+                    } else if (entry.isDirectory()) {
+                        // directories.push(fullPath);
+                        addUserDirectory(fullPath);
+                    }
+                });
+                resolve(path);
+            }
+        });
+    });
+}
