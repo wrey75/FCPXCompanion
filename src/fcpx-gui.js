@@ -51,8 +51,8 @@ function resfreshDisplay() {
     // console.log("show progres...");
     var textToDisplay = "All directories scanned.";
     // console.log("progress is " + scannedDirectories + "/" + nbDirectories);
-    if (nbDirectories > scannedDirectories) {
-        var path = "";
+    if (nbDirectories > scannedDirectories && nbDirectories > 0) {
+        var path = '';
         var parts = currentScanned.split("/");
         if (parts.length > 2) {
             path = parts[0];
@@ -65,12 +65,11 @@ function resfreshDisplay() {
             }
             path = path + "/" + parts[parts.length - 1];
         } else {
-            console.error("NOT SPLITTED? ", parts);
             path = currentScanned;
         }
         textToDisplay = "Scanning " + path;
     } else {
-        clearInterval(scannerTimer);
+        // clearInterval(scannerTimer);
         document.getElementById("spinner").style.display = "none";
     }
     const size = Math.floor((scannedDirectories * 100.0) / nbDirectories);
@@ -83,20 +82,37 @@ function resfreshDisplay() {
         fcpxLibraries.forEach((lib, index) => {
             var mediaSize = 0;
             var links = 0;
+            var lost = 0;
             lib.events.forEach((e) => {
                 mediaSize += e.size;
                 links += e.links;
+                lost += e.lost.length;
             });
-            html += tag("a", { class: "list-group-item list-group-item-action", id: "library-" + index });
+            html += tag("li", { class: "list-group-item", id: "library-" + index });
             html += "<b>" + escapeHtml(lib.name) + "</b> <small>(" + lib.events.length + " events)</small> <br>";
             html += "<small>" + escapeHtml(lib.path) + "</small><br>";
-            html += "<small>Transcoded: <b>" + diskSize(lib.proxySize) + '<i class="bi bi-eraser-fill"></i></b>, ';
-            html += "Rendered: <b>" + diskSize(lib.renderSize) + "</b>, ";
+            html += "<small>";
+            if (lib.proxySize == 0) {
+                html += "No transcoded media, ";
+            } else {
+                html += "Transcoded: <b>" + diskSize(lib.proxySize) + '</b> ';
+                html += '<a href="#" onclick="return deleteTranscoded('+index+')"><i class="text-warning bi bi-eraser-fill"></i></a>, ';
+            }
+            if (lib.renderSize > 0) {
+                html += "Rendered: <b>" + diskSize(lib.renderSize) + '</b> ';
+                html += '<a href="#" onclick="return deleteRender('+index+')"><i class="text-warning bi bi-eraser-fill"></i></a>, ';
+            } else {
+                html += "No rendered media, ";
+            }
             html += "Media: <b>" + diskSize(mediaSize) + "</b>";
-            html += lib.links > 0 ? " (" + links + " references)" : "";
+            if (links > 0) {
+                html += " (" + links + "  links";
+                html += lost > 0 ? ', <strong class="text-danger">' + lost + " lost</strong>" : "";
+                html += ")";
+            }
             html += "</small><br>";
             // html += JSON.stringify(lib);
-            html += "</a>";
+            html += "</li>";
         });
         $("#libraryContents").html(html);
 
@@ -108,6 +124,24 @@ function resfreshDisplay() {
         infos += "</table>";
         $("#informationContents").html(infos);
     }
+}
+
+function deleteRender(index) {
+    path = fcpxLibraries[index].path + '/Render Files';
+    // deleteDirectoryContents(path);
+    reloadLibrary(index);
+    resfreshDisplay();
+    return false;
+}
+
+function deleteTranscoded(index) {
+    fcpxLibraries[index].events.forEach(evt => {
+        path = fcpxLibraries[index].path + '/' + evt.name + '/Transcoded Media';
+        deleteDirectoryContents(path);
+    })
+    reloadLibrary(index);
+    resfreshDisplay();
+    return false;
 }
 
 /*
@@ -138,9 +172,11 @@ jQuery(function () {
     selectTab("library");
 });
 
+
 const homedir = require("os").homedir();
 addUserDirectory(homedir + "/Movies");
 addUserDirectory("/Volumes/FinalCutPro");
+resfreshDisplay();
 
 function wait(milliseconds) {
     return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -149,13 +185,12 @@ function wait(milliseconds) {
 async function waitEndOfScan() {
     var i = 0;
     while (scannedDirectories < nbDirectories) {
-        while (i < promises.length) {
+        while (i < Math.min(i + 100, promises.length)) {
             promises[i].then(
                 (result) => {
                     result.forEach((p) => addUserDirectory(p));
                     scannedDirectories++;
                     process.stdout.write("\r" + scannedDirectories + "/" + nbDirectories + "...");
-                    resfreshDisplay();
                 },
                 (err) => {
                     scannedDirectories++;
@@ -163,7 +198,8 @@ async function waitEndOfScan() {
             );
             i++;
         }
-        await wait(1000);
+        await wait(500);
+        resfreshDisplay();
         console.log("check at " + new Date());
     }
 }

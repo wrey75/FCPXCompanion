@@ -162,13 +162,21 @@ function scanEventFiles(library, event, path) {
         } else {
             files.forEach((e) => {
                 if (e.isSymbolicLink()) {
-                    var realPath = fs.realpathSync(path + "/" + e.name);
-                    trace("SYMLINK", path + "/" + e.name + " => " + realPath);
-                    var infos = registerFile(realPath);
-                    infos.library = library;
-                    infos.event = event;
-                    infos.from = path + "/" + e.name;
-                    event.links += 1;
+                    event.links++;
+                    try {
+                        var realPath = fs.realpathSync(path + "/" + e.name);
+                        trace("SYMLINK", path + "/" + e.name + " => " + realPath);
+                        var infos = registerFile(realPath);
+                        infos.library = library;
+                        infos.event = event;
+                        infos.from = path + "/" + e.name;
+                    } catch (err) {
+                        if (err.code === "ENOENT") {
+                            event.lost.push(e.name);
+                        } else {
+                            console.error(e.name + ': ' + err.code);;
+                        }
+                    }
                 } else if (e.isDirectory()) {
                     // Quite unexepected
                     console.warn("Found a sub-directory...!");
@@ -184,6 +192,36 @@ function scanEventFiles(library, event, path) {
     });
 }
 
+/**
+ * Delete the contents of a directory (but NOT the directory itself). Used
+ * to delete rendered and prox mdeia.
+ * 
+ * @param {string} path the path to delete
+ */
+function deleteDirectoryContents(path) {
+    if (fs.existsSync(path)) {
+        var files = fs.readdirSync(path, { withFileTypes: true });
+        if (files) {
+            files.forEach((entry) => {
+                var full = path + '/' + entry.name;
+                if (entry.isDirectory(full)) {
+                    deleteDirectoryContents(full);
+                    fs.rmdirSync(full);
+                    console.log(full + ": rmdir");
+                } else {
+                    fs.unlinkSync(full);
+                    console.log(full + ": deleted");
+                }
+            });
+        } else {
+            console.warn(path + ": can not read");
+        }
+    } else {
+        console.log(path + ": not found!");
+    }
+    return true;
+}
+
 function isFinalCutCache(path) {
     if (path.match(/\.fcpcache$/)) {
         var entry = fs.statSync(path);
@@ -192,6 +230,63 @@ function isFinalCutCache(path) {
     return false;
 }
 
+
+/**
+ * Reload the library based on information available at the index. Quite simple
+ * way to do.
+ * 
+ * @param {number} index 
+ */
+function reloadLibrary(index) {
+    fcpxLibraries[index] = loadLibrary(fcpxLibraries[index].path);
+}
+
+/**
+ * Load the library and return the characteristics. Note we must first ensure the
+ * library exists and is a valid one.
+ * 
+ * @param {string} path 
+ * @returns 
+ */
+function loadLibrary(path) {
+    var library = scanPList(path + "/Settings.plist");
+    library.events = [];
+    library.name = path.replace(/.*\//, "").replace(/\.fcpbundle$/, "");
+    library.path = path;
+    library.proxySize = +0;
+    library.renderSize = +0;
+    library.mediaSize = +0;
+    library.links = +0;
+    library.lost = +0;
+    var eventDir = fs.readdirSync(path, { withFileTypes: true });
+    eventDir.forEach((ent) => {
+        if (fs.existsSync(path + "/" + ent.name + "/CurrentVersion.fcpevent")) {
+            var event = {
+                name: ent.name,
+                size: +0,
+                links: +0,
+                projects: [], // name of projects in the event
+                lost: [], // lost symbolic links
+            };
+            scanEventFiles(library, event, path + "/" + ent.name + "/Original Media");
+            fs.readdir(path + "/" + ent.name, { withFileTypes: true }, (err, files) => {
+                files.forEach((f) => {
+                    if (fs.existsSync(path + "/" + ent.name + "/" + f.name + "/CurrentVersion.fcpevent")) {
+                        event.projects.push(f.name);
+                    }
+                });
+            });
+            event.proxySize = directorySize(path + "/" + ent.name + "/Transcoded Media");
+            event.renderSize = directorySize(path + "/" + ent.name + "/Render Files");
+            library.events.push(event);
+            library.renderSize += event.renderSize;
+            library.proxySize += event.proxySize;
+            library.lost += event.lost.length;
+            library.links += event.links;
+        }
+    });
+    return library;
+}
 
 function registerLibrary(path) {
     if (path.match(/\.fcpbundle$/)) {
@@ -204,39 +299,9 @@ function registerLibrary(path) {
                 return false;
             }
             try {
-                var library = scanPList(path + "/Settings.plist");
-                library.events = [];
-                library.name = path.replace(/.*\//, "").replace(/\.fcpbundle$/, "");
-                library.path = path;
-                library.proxySize = 0;
-                library.renderSize = 0;
-                library.mediaSize = 0;
-                library.links = 0;
-                var eventDir = fs.readdirSync(path, { withFileTypes: true });
-                eventDir.forEach((ent) => {
-                    if (fs.existsSync(path + "/" + ent.name + "/CurrentVersion.fcpevent")) {
-                        var event = {
-                            name: ent.name,
-                            size: 0,
-                            links: 0,
-                            projects: [],
-                        };
-                        scanEventFiles(library, event, path + "/" + ent.name + "/Original Media");
-                        fs.readdir(path + "/" + ent.name, { withFileTypes: true }, (err, files) => {
-                            files.forEach((f) => {
-                                if (fs.existsSync(path + "/" + ent.name + "/" + f.name + "/CurrentVersion.fcpevent")) {
-                                    event.projects.push(f.name);
-                                }
-                            });
-                        });
-                        event.proxySize = directorySize(path + "/" + ent.name + "/Transcoded Media");
-                        event.renderSize = directorySize(path + "/" + ent.name + "/Render Files");
-                        library.events.push(event);
-                        library.renderSize += event.renderSize;
-                        library.proxySize += event.proxySize;
-                    }
-                });
+                var library = loadLibrary(path);
                 fcpxLibraries.push(library);
+                console.log("Regsitered library", library);
             } catch (err) {
                 console.error(err);
             }
@@ -246,6 +311,12 @@ function registerLibrary(path) {
     return false;
 }
 
+/**
+ * Returns the signature for the file (a MD5).
+ * 
+ * @param {string} path the path of the fle 
+ * @returns a MD5 
+ */
 function fileSignature(path) {
     const BUFFER_SIZE = 64 * 1024;
     const buf = Buffer.alloc(BUFFER_SIZE);
