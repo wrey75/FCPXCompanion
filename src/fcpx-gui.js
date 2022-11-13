@@ -41,8 +41,9 @@ function tag(name, attrs) {
 // var scannerTimer = setInterval(scanShowProgress, 5000);
 
 var nextDisplay = 0;
+var backupPromises = [];
 
-function resfreshDisplay() {
+function refreshDisplay() {
     if (nextDisplay < Date.now()) {
         // return;
     }
@@ -52,7 +53,7 @@ function resfreshDisplay() {
     var textToDisplay = "All directories scanned.";
     // console.log("progress is " + scannedDirectories + "/" + nbDirectories);
     if (nbDirectories > scannedDirectories && nbDirectories > 0) {
-        var path = '';
+        var path = "";
         var parts = currentScanned.split("/");
         if (parts.length > 2) {
             path = parts[0];
@@ -68,11 +69,16 @@ function resfreshDisplay() {
             path = currentScanned;
         }
         textToDisplay = "Scanning " + path;
+    } else if (storageDirectory && filesBackuped < backupPromises.length) {
+        textToDisplay = "Backuping " + currentBackup;
     } else {
         // clearInterval(scannerTimer);
         document.getElementById("spinner").style.display = "none";
     }
-    const size = Math.floor((scannedDirectories * 100.0) / nbDirectories);
+    var size = Math.floor((scannedDirectories * 100.0) / nbDirectories);
+    if (storageDirectory) {
+        size = size / 2 + Math.floor(((filesBackuped + 1) * 50.0) / (backupPromises.length + 1));
+    }
     const text = "width: " + size + "%";
     const domScan = document.getElementById("scanProgress");
     domScan.getElementsByTagName("div")[0].style = text;
@@ -95,12 +101,16 @@ function resfreshDisplay() {
             if (lib.proxySize == 0) {
                 html += "No transcoded media, ";
             } else {
-                html += "Transcoded: <b>" + diskSize(lib.proxySize) + '</b> ';
-                html += '<a href="#" onclick="return deleteTranscoded('+index+')"><i class="text-warning bi bi-eraser-fill"></i></a>, ';
+                html += "Transcoded: <b>" + diskSize(lib.proxySize) + "</b> ";
+                html +=
+                    '<a href="#" onclick="return deleteTranscoded(' +
+                    index +
+                    ')"><i class="text-warning bi bi-eraser-fill"></i></a>, ';
             }
             if (lib.renderSize > 0) {
-                html += "Rendered: <b>" + diskSize(lib.renderSize) + '</b> ';
-                html += '<a href="#" onclick="return deleteRender('+index+')"><i class="text-warning bi bi-eraser-fill"></i></a>, ';
+                html += "Rendered: <b>" + diskSize(lib.renderSize) + "</b> ";
+                html +=
+                    '<a href="#" onclick="return deleteRender(' + index + ')"><i class="text-warning bi bi-eraser-fill"></i></a>, ';
             } else {
                 html += "No rendered media, ";
             }
@@ -121,30 +131,34 @@ function resfreshDisplay() {
         infos += "<tr><td>Scanned directories:</td><td>" + scannedDirectories + "</td></tr>";
         infos += "<tr><td>Total of directories:</td><td>" + nbDirectories + "</td></tr>";
         infos += "<tr><td>Registered files:</td><td>" + Object.keys(fileMap).length + "</td></tr>";
+        if (storageDirectory) {
+            infos += "<tr><td>Backup Storage:</td><td>" + storageDirectory + "</td></tr>";
+            infos += "<tr><td>Files backuped:</td><td>" + filesBackuped + "</td></tr>";
+            infos += "<tr><td>Files to backup:</td><td>" + backupPromises.length + "</td></tr>";
+        }
         infos += "</table>";
         $("#informationContents").html(infos);
     }
 }
 
 function deleteEventDirectory(index, subdir) {
-    fcpxLibraries[index].events.forEach(evt => {
-        path = fcpxLibraries[index].path + '/' + evt.name + '/' + subdir;
+    fcpxLibraries[index].events.forEach((evt) => {
+        path = fcpxLibraries[index].path + "/" + evt.name + "/" + subdir;
         deleteDirectoryContents(path);
-    })
+    });
     reloadLibrary(index);
-    resfreshDisplay();
+    refreshDisplay();
 }
 
 function deleteRender(index) {
-    deleteEventDirectory(index, 'Render Files');
+    deleteEventDirectory(index, "Render Files");
     return false;
 }
 
 function deleteTranscoded(index) {
-    deleteEventDirectory(index, 'Transcoded Media');
+    deleteEventDirectory(index, "Transcoded Media");
     return false;
 }
-
 
 function selectTab(activeTab) {
     console.log("tab " + activeTab + " selected.");
@@ -165,11 +179,31 @@ jQuery(function () {
     selectTab("library");
 });
 
-
 const homedir = require("os").homedir();
+checkForBackupDisk();
 addUserDirectory(homedir + "/Movies");
 addUserDirectory("/Volumes/FinalCutPro");
-resfreshDisplay();
+refreshDisplay();
+
+var filesBackuped = 0;
+
+function backupAllFiles() {
+    backupPromises = searchBackupFiles(true).map((md5) => {
+        console.log("Adding " + md5);
+        new Promise((resolve, reject) => {
+            currentBackup = fileMap[md5].name;
+            backupFile(md5);
+            filesBackuped++;
+            refreshDisplay();
+            resolve(md5);
+        });
+    });
+
+    Promise.all(backupPromises).then(() => {
+        console.log("Backup done. Program terminates.");
+    });
+}
+
 
 function wait(milliseconds) {
     return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -191,9 +225,12 @@ async function waitEndOfScan() {
             i++;
         }
         await wait(500);
-        resfreshDisplay();
+        refreshDisplay();
         console.log("check at " + new Date());
     }
+    backupAllFiles();
 }
 
 waitEndOfScan();
+
+

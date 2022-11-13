@@ -10,6 +10,7 @@ const fs = require("fs");
 const tty = require("tty");
 const crypto = require("crypto");
 const os = require("os");
+const path = require("path");
 // Importing dialog module using remote
 // const dialog = electron.remote.dialog;
 
@@ -174,7 +175,7 @@ function scanEventFiles(library, event, path) {
                         if (err.code === "ENOENT") {
                             event.lost.push(e.name);
                         } else {
-                            console.error(e.name + ': ' + err.code);;
+                            console.error(e.name + ": " + err.code);
                         }
                     }
                 } else if (e.isDirectory()) {
@@ -195,7 +196,7 @@ function scanEventFiles(library, event, path) {
 /**
  * Delete the contents of a directory (but NOT the directory itself). Used
  * to delete rendered and prox mdeia.
- * 
+ *
  * @param {string} path the path to delete
  */
 function deleteDirectoryContents(path) {
@@ -203,7 +204,7 @@ function deleteDirectoryContents(path) {
         var files = fs.readdirSync(path, { withFileTypes: true });
         if (files) {
             files.forEach((entry) => {
-                var full = path + '/' + entry.name;
+                var full = path + "/" + entry.name;
                 if (entry.isDirectory(full)) {
                     deleteDirectoryContents(full);
                     fs.rmdirSync(full);
@@ -230,12 +231,11 @@ function isFinalCutCache(path) {
     return false;
 }
 
-
 /**
  * Reload the library based on information available at the index. Quite simple
  * way to do.
- * 
- * @param {number} index 
+ *
+ * @param {number} index
  */
 function reloadLibrary(index) {
     fcpxLibraries[index] = loadLibrary(fcpxLibraries[index].path);
@@ -244,9 +244,9 @@ function reloadLibrary(index) {
 /**
  * Load the library and return the characteristics. Note we must first ensure the
  * library exists and is a valid one.
- * 
- * @param {string} path 
- * @returns 
+ *
+ * @param {string} path
+ * @returns
  */
 function loadLibrary(path) {
     var library = scanPList(path + "/Settings.plist");
@@ -301,7 +301,7 @@ function registerLibrary(path) {
             try {
                 var library = loadLibrary(path);
                 fcpxLibraries.push(library);
-                console.log("Registered library", library);
+                console.log("Registered library " + library.libraryID);
             } catch (err) {
                 console.error(err);
             }
@@ -313,9 +313,9 @@ function registerLibrary(path) {
 
 /**
  * Returns the signature for the file (a MD5).
- * 
- * @param {string} path the path of the fle 
- * @returns a MD5 
+ *
+ * @param {string} path the path of the fle
+ * @returns a MD5
  */
 function fileSignature(path) {
     const BUFFER_SIZE = 64 * 1024;
@@ -384,11 +384,10 @@ function directorySize(path) {
             console.warn(path + ": can not read");
         }
     } else {
-        console.log(path + ": not found!");
+        // empty directory => 0 bytes;
     }
     return size;
 }
-
 
 var promises = [];
 
@@ -399,6 +398,33 @@ function addUserDirectory(path) {
 
 function isValidDirectory(path) {
     return path.match(new RegExp("^/Users/")) || path.match(new RegExp("^/Volumes/"));
+}
+
+var storageDirectory = null;
+
+function checkForBackupDisk() {
+    // const BACKUP_DIR = '/Volumes/FCPSlave';
+    const BACKUP_DIR = "/Users/Shared/FCPSlave"; // For test purposes only
+    if (fs.existsSync(BACKUP_DIR)) {
+        storageDirectory = BACKUP_DIR + "/BackupStore";
+        if (fs.existsSync(storageDirectory)) {
+            fs.readFile(storageDirectory + "/store.json", (err, data) => {
+                if (err) throw err;
+                backupStore = JSON.parse(data);
+                console.log("Backup store loaded.");
+            });
+        } else {
+            backupStore = {};
+            fs.mkdirSync(storageDirectory, { recursive: true });
+            fs.mkdirSync(storageDirectory + "/Files", { recursive: true });
+            fs.mkdirSync(storageDirectory + "/Folders", { recursive: true });
+            fs.writeFile(storageDirectory + "/store.json", JSON.stringify({}), (err) => {
+                if (err) throw err;
+                console.log("Backup store initialized.");
+            });
+        }
+    }
+    console.log("checkForBackupDisk => " + storageDirectory);
 }
 
 function scanDirectory(path) {
@@ -426,6 +452,7 @@ function scanDirectory(path) {
                         notice("FCPX", fullPath);
                     } else if (isFinalCutCache(fullPath)) {
                         notice("CACHE", fullPath);
+                        /*  => symbolic links should NOT be followed because scanned elsewhere
                     } else if (entry.isSymbolicLink()) {
                         var path2 = fs.readlinkSync(fullPath);
                         if (isValidDirectory(path2)) {
@@ -437,6 +464,7 @@ function scanDirectory(path) {
                         //     entry = fs.statSync(path2);
                         //     fullPath = path2;
                         // }
+                        */
                     } else if (
                         fullPath.match(/^\/(Applications|private|dev|Library|System)$/) ||
                         fullPath == os.homedir() + "/Library"
@@ -451,5 +479,54 @@ function scanDirectory(path) {
                 resolve(pathList);
             }
         });
+    });
+}
+
+function searchBackupFiles(externalFiles) {
+    console.log("searchBackupFiles...");
+    const fileList = [];
+    Object.keys(fileMap)
+        .filter((key) => externalFiles || fileMap[key].some((e) => e.library != null))
+        .forEach((md5) => {
+            subdir = md5[0] + "/" + md5.substring(0, 2);
+            var files = [];
+            if (fs.existsSync(storageDirectory + "/Files/" + md5)) {
+                filename = subdir + "/" + md5;
+                files = fs.readdirSync(subdir).filter((name) => name.startsWith(md5));
+            }
+            if (files.length < 1) {
+                fileList.push(md5);
+            } else {
+                console.log("already: " + files[0]);
+            }
+        });
+    return fileList;
+}
+
+function backupFile(md5) {
+    const infos = fileMap[md5];
+    const ext = path.extname(infos[0].path);
+    const md5filename = md5 + ext.toLowerCase();
+    const md5dir = storageDirectory + "/Files/" + md5[0] + "/" + md5.substring(0, 2);
+    const md5path = md5dir + '/' + md5filename;
+
+    try {
+        fs.mkdirSync(md5dir, { recursive: true });
+        fs.copyFileSync(infos[0].path, md5path);
+    } catch (err) {
+        console.error(md5filename, err);
+        return;
+    }
+
+    infos.forEach((f) => {
+        try {
+            const filename = storageDirectory + '/Folders' + f.path;
+            const dirname = path.dirname(filename);
+            fs.mkdirSync(dirname, { recursive: true });
+            fs.linkSync(md5path, filename);
+            console.log("HARD LINK " + filename + " => " + md5filename);
+        } catch (err) {
+            console.error(md5filename + ": " + err.message);
+        }
     });
 }
