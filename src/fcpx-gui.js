@@ -43,12 +43,12 @@ function tag(name, attrs) {
 var nextDisplay = 0;
 
 function resfreshDisplay() {
-    if (nextDisplay > Date.now()) {
-        return;
+    if (nextDisplay < Date.now()) {
+        // return;
     }
     nextDisplay = Date.now() + 1000;
 
-    // console.log("show progres...");
+    //console.log("show progress...");
     var textToDisplay = "All directories scanned.";
     // console.log("progress is " + scannedDirectories + "/" + nbDirectories);
     if (nbDirectories > scannedDirectories && nbDirectories > 0) {
@@ -126,33 +126,26 @@ function resfreshDisplay() {
     }
 }
 
-function deleteRender(index) {
-    path = fcpxLibraries[index].path + '/Render Files';
-    // deleteDirectoryContents(path);
-    reloadLibrary(index);
-    resfreshDisplay();
-    return false;
-}
-
-function deleteTranscoded(index) {
+function deleteEventDirectory(index, subdir) {
     fcpxLibraries[index].events.forEach(evt => {
-        path = fcpxLibraries[index].path + '/' + evt.name + '/Transcoded Media';
+        path = fcpxLibraries[index].path + '/' + evt.name + '/' + subdir;
         deleteDirectoryContents(path);
     })
     reloadLibrary(index);
     resfreshDisplay();
+}
+
+function deleteRender(index) {
+    deleteEventDirectory(index, 'Render Files');
     return false;
 }
 
-/*
-Promise.all([
-    scanDirectories(homedir + "/Movies" ),
-    // scanDirectories("/Volumes"),
-]).then((v) => {
-    scanShowProgress("DONE");
-    console.log(v + " directories scanned.");
-});
-*/
+function deleteTranscoded(index) {
+    deleteEventDirectory(index, 'Transcoded Media');
+    return false;
+}
+
+
 function selectTab(activeTab) {
     console.log("tab " + activeTab + " selected.");
     $("#tabs .nav-link").each(function (idx) {
@@ -189,11 +182,10 @@ async function waitEndOfScan() {
             promises[i].then(
                 (result) => {
                     result.forEach((p) => addUserDirectory(p));
-                    scannedDirectories++;
                     process.stdout.write("\r" + scannedDirectories + "/" + nbDirectories + "...");
                 },
                 (err) => {
-                    scannedDirectories++;
+                    console.warn(err.message);
                 }
             );
             i++;

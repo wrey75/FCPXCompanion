@@ -301,7 +301,7 @@ function registerLibrary(path) {
             try {
                 var library = loadLibrary(path);
                 fcpxLibraries.push(library);
-                console.log("Regsitered library", library);
+                console.log("Registered library", library);
             } catch (err) {
                 console.error(err);
             }
@@ -389,79 +389,6 @@ function directorySize(path) {
     return size;
 }
 
-function scanDirectories(path) {
-    nbDirectories++;
-    return new Promise((resolve, reject) => {
-        trace("SCAN", path);
-        if (!path.match(new RegExp("^/Users/")) && !path.match(new RegExp("^/Volumes"))) {
-            console.warn("ILLEGAL", path);
-            scannedDirectories++;
-            resolve(nbDirectories);
-            return;
-        }
-        // currentScanned = path;
-        fs.readdir(path, { withFileTypes: true }, (err, files) => {
-            currentScanned = path;
-            promises = [];
-            if (err) {
-                warning(err.code, path);
-            } else {
-                // try {
-                // var directories = [];
-                // var files = fs.readdirSync(path, { withFileTypes: true });
-                // console.log(JSON.stringify(files));
-                files.forEach((entry) => {
-                    var fullPath = path.replace(/\/$/, "") + "/" + entry.name;
-                    if (entry.name.match(/^\./)) {
-                        //console.log("Entry " + fullPath + " ignored.")
-                    } else if (isVideoFile(fullPath) && entry.isFile()) {
-                        registerFile(fullPath);
-                    } else if (registerLibrary(fullPath)) {
-                        notice("FCPX", fullPath);
-                    } else if (entry.isSymbolicLink() && !rootDisk) {
-                        var path2 = fs.readlinkSync(fullPath);
-                        if (path2 == "/") {
-                            rootDisk = entry.name;
-                            notice("ROOTDISK", entry.name + " (from " + fullPath + ")");
-                            scanDirectories("/");
-                        }
-                        // while (entry.isSymbolicLink()) {
-                        //     var path2 = fs.readlinkSync(fullPath);
-                        //     notice("SYMLINK", fullPath + " => " + path2);
-                        //     entry = fs.statSync(path2);
-                        //     fullPath = path2;
-                        // }
-                    } else if (
-                        fullPath.match(/^\/(Applications|private|dev|Library|System)$/) ||
-                        fullPath == os.homedir() + "/Library"
-                    ) {
-                        notice("IGNORE", fullPath);
-                    } else if (entry.isDirectory()) {
-                        // directories.push(fullPath);
-                        promises.push(scanDirectories(fullPath));
-                    }
-                });
-                // nbDirectories += directories.length + 1;
-                // directories.forEach((p) => scanDirectories(p));
-                // nbDirectories -= directories.length;
-                // } catch (err) {
-                //     warning(err.code || err, path);
-                // }
-            }
-            Promise.all(promises)
-                .then(() => {
-                    // scannedDirectories++;
-                    resolve(nbDirectories);
-                })
-                .finally(() => {
-                    scannedDirectories++;
-                    if (tty.isatty(process.stdout.fd)) {
-                        process.stdout.write("\r" + scannedDirectories + "/" + nbDirectories + "...");
-                    }
-                });
-        });
-    });
-}
 
 var promises = [];
 
@@ -471,7 +398,7 @@ function addUserDirectory(path) {
 }
 
 function isValidDirectory(path) {
-    return path.match(new RegExp("^/Users/")) || !path.match(new RegExp("^/Volumes"));
+    return path.match(new RegExp("^/Users/")) || path.match(new RegExp("^/Volumes/"));
 }
 
 function scanDirectory(path) {
@@ -482,6 +409,7 @@ function scanDirectory(path) {
             currentScanned = path;
             if (err) {
                 warning(err.code, path);
+                scannedDirectories++;
                 reject(err);
             } else {
                 // try {
@@ -519,6 +447,7 @@ function scanDirectory(path) {
                         pathList.push(fullPath);
                     }
                 });
+                scannedDirectories++;
                 resolve(pathList);
             }
         });
