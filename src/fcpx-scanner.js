@@ -16,14 +16,16 @@ const path = require("path");
 
 var currentScanned = "/";
 var scanErrors = [];
-var nbDirectories = 0;
-var scannedDirectories = 0;
 var rootDisk = null;
 var fileMap = {};
 var extraFiles = [];
 var fcpxLibraries = [];
 var fcpxBackups = [];
+var fcpxCaches = [];
 var verbose = 1;
+
+const BACKUP_DIR = "/Volumes/FCPSlave";
+//const BACKUP_DIR = "/Users/Shared/FCPSlave"; // For test purposes only
 
 function formattedText(type, message, color = "none") {
     var texte = "                    ".substring(0, 15 - type.length) + type + ": " + message;
@@ -226,7 +228,12 @@ function deleteDirectoryContents(path) {
 function isFinalCutCache(path) {
     if (path.match(/\.fcpcache$/)) {
         var entry = fs.statSync(path);
-        return entry.isDirectory() && fs.existsSync(path + "/info.plist");
+        if (entry.isDirectory() && fs.existsSync(path + "/Info.plist")) {
+            const vars = scanPList(path + "/Info.plist");
+            fcpxCaches.push(vars.libraryID);
+            console.log("Found cache " + vars.libraryID);
+            return true;
+        }
     }
     return false;
 }
@@ -303,7 +310,7 @@ function registerLibrary(path) {
                 fcpxLibraries.push(library);
                 console.log("Registered library " + library.libraryID);
             } catch (err) {
-                console.error(err);
+                console.warn("Can not register library.");
             }
             return true;
         }
@@ -319,42 +326,47 @@ function registerLibrary(path) {
  */
 function fileSignature(path) {
     const BUFFER_SIZE = 64 * 1024;
-    const buf = Buffer.alloc(BUFFER_SIZE);
-    try {
-        const fd = fs.openSync(path);
-        const infos = fs.fstatSync(fd);
-        const hash = crypto.createHash("md5");
-        fs.readSync(fd, buf, {
-            length: Math.min(BUFFER_SIZE, infos.size),
-            position: 0,
-        });
-        hash.update(Uint8Array.from(buf));
-        fs.readSync(fd, buf, {
-            length: Math.min(BUFFER_SIZE, infos.size),
-            position: Math.max(0, infos.size - BUFFER_SIZE),
-        });
-        hash.update(Uint8Array.from(buf));
-        fs.closeSync(fd);
-        return hash.digest("hex");
-    } catch (err) {
-        warning(err.code, path);
-        return "error";
-    }
+    return new Promise((resolve, reject) => {
+        const buf = Buffer.alloc(BUFFER_SIZE);
+        try {
+            const fd = fs.openSync(path);
+            const infos = fs.fstatSync(fd);
+            const hash = crypto.createHash("md5");
+            fs.readSync(fd, buf, {
+                length: Math.min(BUFFER_SIZE, infos.size),
+                position: 0,
+            });
+            hash.update(Uint8Array.from(buf));
+            fs.readSync(fd, buf, {
+                length: Math.min(BUFFER_SIZE, infos.size),
+                position: Math.max(0, infos.size - BUFFER_SIZE),
+            });
+            hash.update(Uint8Array.from(buf));
+            fs.closeSync(fd);
+            resolve(hash.digest("hex"));
+        } catch (err) {
+            warning(err.code, path);
+            reject("error");
+        }
+    });
 }
 
 function registerFile(path) {
-    const md5 = fileSignature(path);
-    var entry = fileMap[md5] || [];
-    const infos = fs.statSync(path);
-    var newEntry = {
-        path: path,
-        md5: md5,
-        size: infos.size,
-    };
-    entry.push(newEntry);
-    fileMap[md5] = entry;
-    trace("REGISTER", md5 + " - " + path + (entry.length > 1 ? " = " + entry[0].path : ""));
-    return newEntry;
+    return new Promise((resolve, reject) => {
+        fileSignature(path).then((md5) => {
+            var entry = fileMap[md5] || [];
+            const infos = fs.statSync(path);
+            var newEntry = {
+                path: path,
+                md5: md5,
+                size: infos.size,
+            };
+            entry.push(newEntry);
+            fileMap[md5] = entry;
+            trace("REGISTER", md5 + " - " + path + (entry.length > 1 ? " = " + entry[0].path : ""));
+            resolve(newEntry);
+        });
+    });
 }
 
 /**
@@ -391,8 +403,7 @@ function directorySize(path) {
 
 var promises = [];
 
-function addUserDirectory(path) {
-    nbDirectories++;
+function addScanDirectory(path) {
     promises.push(scanDirectory(path));
 }
 
@@ -403,8 +414,6 @@ function isValidDirectory(path) {
 var storageDirectory = null;
 
 function checkForBackupDisk() {
-    // const BACKUP_DIR = '/Volumes/FCPSlave';
-    const BACKUP_DIR = "/Users/Shared/FCPSlave"; // For test purposes only
     if (fs.existsSync(BACKUP_DIR)) {
         storageDirectory = BACKUP_DIR + "/BackupStore";
         if (fs.existsSync(storageDirectory)) {
@@ -435,19 +444,19 @@ function scanDirectory(path) {
             currentScanned = path;
             if (err) {
                 warning(err.code, path);
-                scannedDirectories++;
                 reject(err);
             } else {
                 // try {
                 // var directories = [];
                 // var files = fs.readdirSync(path, { withFileTypes: true });
                 // console.log(JSON.stringify(files));
+                var checks = [];
                 files.forEach((entry) => {
                     var fullPath = path.replace(/\/$/, "") + "/" + entry.name;
                     if (entry.name.match(/^\./)) {
                         //console.log("Entry " + fullPath + " ignored.")
                     } else if (isVideoFile(fullPath) && entry.isFile()) {
-                        registerFile(fullPath);
+                        checks.push(registerFile(fullPath));
                     } else if (registerLibrary(fullPath)) {
                         notice("FCPX", fullPath);
                     } else if (isFinalCutCache(fullPath)) {
@@ -473,10 +482,10 @@ function scanDirectory(path) {
                     } else if (entry.isDirectory()) {
                         // directories.push(fullPath);
                         pathList.push(fullPath);
+                        trace("ADD", fullPath);
                     }
                 });
-                scannedDirectories++;
-                resolve(pathList);
+                Promise.all(checks).then(() => resolve(pathList));
             }
         });
     });
@@ -508,25 +517,28 @@ function backupFile(md5) {
     const ext = path.extname(infos[0].path);
     const md5filename = md5 + ext.toLowerCase();
     const md5dir = storageDirectory + "/Files/" + md5[0] + "/" + md5.substring(0, 2);
-    const md5path = md5dir + '/' + md5filename;
+    const md5path = md5dir + "/" + md5filename;
 
-    try {
-        fs.mkdirSync(md5dir, { recursive: true });
-        fs.copyFileSync(infos[0].path, md5path);
-    } catch (err) {
-        console.error(md5filename, err);
-        return;
-    }
-
-    infos.forEach((f) => {
+    return new Promise((resolve, reject) => {
         try {
-            const filename = storageDirectory + '/Folders' + f.path;
-            const dirname = path.dirname(filename);
-            fs.mkdirSync(dirname, { recursive: true });
-            fs.linkSync(md5path, filename);
-            console.log("HARD LINK " + filename + " => " + md5filename);
+            fs.mkdirSync(md5dir, { recursive: true });
+            fs.copyFile(infos[0].path, md5path, (err) => {
+                infos.forEach((f) => {
+                    try {
+                        const filename = storageDirectory + "/Folders" + f.path;
+                        const dirname = path.dirname(filename);
+                        fs.mkdirSync(dirname, { recursive: true });
+                        fs.linkSync(md5path, filename);
+                        console.log("HARD LINK " + filename + " => " + md5filename);
+                    } catch (err) {
+                        console.error(md5filename + ": " + err.message);
+                    }
+                });
+                resolve(md5filename);
+            });
         } catch (err) {
-            console.error(md5filename + ": " + err.message);
+            console.error(md5filename, err);
+            reject(err);
         }
     });
 }

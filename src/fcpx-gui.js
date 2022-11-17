@@ -1,3 +1,6 @@
+var nbDirectories = 0;
+var scannedDirectories = 0;
+
 function diskSize(bytes) {
     // console.log("diskSize("+bytes+")")
     if (bytes === 0) {
@@ -179,10 +182,15 @@ jQuery(function () {
     selectTab("library");
 });
 
+function addUserDirectory(path) {
+    nbDirectories++;
+    addScanDirectory(path);
+}
+
 const homedir = require("os").homedir();
 checkForBackupDisk();
-addUserDirectory(homedir + "/Movies");
-addUserDirectory("/Volumes/FinalCutPro");
+addUserDirectory("/Users");
+addUserDirectory("/Volumes");
 refreshDisplay();
 
 var filesBackuped = 0;
@@ -192,10 +200,11 @@ function backupAllFiles() {
         console.log("Adding " + md5);
         new Promise((resolve, reject) => {
             currentBackup = fileMap[md5].name;
-            backupFile(md5);
-            filesBackuped++;
-            refreshDisplay();
-            resolve(md5);
+            backupFile(md5).then(() => {
+                filesBackuped++;
+                refreshDisplay();
+                resolve(md5);
+            });
         });
     });
 
@@ -204,33 +213,36 @@ function backupAllFiles() {
     });
 }
 
-
 function wait(milliseconds) {
     return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-async function waitEndOfScan() {
-    var i = 0;
+async function startScanner() {
+    var count = 0;
     while (scannedDirectories < nbDirectories) {
-        while (i < Math.min(i + 100, promises.length)) {
-            promises[i].then(
+        refreshDisplay();
+        for(i = 0; i < 100 && (count < promises.length); i++) {
+            promises[count++].then(
                 (result) => {
-                    result.forEach((p) => addUserDirectory(p));
+                    result.forEach((p) => {
+                        addUserDirectory(p);
+                    });
+                    refreshDisplay();
                     process.stdout.write("\r" + scannedDirectories + "/" + nbDirectories + "...");
+                    scannedDirectories++;
                 },
                 (err) => {
                     console.warn(err.message);
+                    scannedDirectories++;
                 }
             );
-            i++;
         }
         await wait(500);
-        refreshDisplay();
-        console.log("check at " + new Date());
+        console.log("check dirs: " + scannedDirectories + "/" + i);
     }
-    backupAllFiles();
+    if (storageDirectory) {
+        // backupAllFiles();
+    }
 }
 
-waitEndOfScan();
-
-
+startScanner();
