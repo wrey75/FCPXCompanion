@@ -518,7 +518,6 @@ function backupFile(md5) {
     const md5filename = md5 + ext.toLowerCase();
     const md5dir = storageDirectory + "/Files/" + md5[0] + "/" + md5.substring(0, 2);
     const md5path = md5dir + "/" + md5filename;
-
     return new Promise((resolve, reject) => {
         try {
             fs.mkdirSync(md5dir, { recursive: true });
