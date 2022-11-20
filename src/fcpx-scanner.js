@@ -287,9 +287,9 @@ function registerLibrary(path) {
                 const bckInfos = scanPList(path + "/__BackupInfo.plist");
                 notice("BACKUP", path);
                 fcpxBackups.push({
-                    'path': path,
-                    'libraryID': settings.libraryID,
-                    'backupDate': bckInfos.date
+                    path: path,
+                    libraryID: settings.libraryID,
+                    backupDate: bckInfos.date,
                 });
                 return true;
             }
@@ -343,6 +343,8 @@ function fileSignature(path) {
 function registerFile(path) {
     return new Promise((resolve, reject) => {
         fileSignature(path).then((md5) => {
+            currentScanned = path;
+
             var entry = fileMap[md5] || [];
             const infos = fs.statSync(path);
             var newEntry = {
@@ -397,7 +399,14 @@ function addScanDirectory(path) {
 }
 
 function isValidDirectory(path) {
-    return path.match(new RegExp("^/Users/")) || path.match(new RegExp("^/Volumes/"));
+    if (path.match(/^\/(Applications|private|dev|Library|System)$/) || path == os.homedir() + "/Library") {
+        return false;
+    }
+    if (path.match(new RegExp("^/Users/"))) return true;
+    if (path.match(new RegExp("^/Volumes/"))) {
+        return !path.match(new RegExp("^/Volumes/TimeMachine/Backups.backupdb"));
+    }
+    return false;
 }
 
 var storageDirectory = null;
@@ -427,7 +436,7 @@ function checkForBackupDisk() {
 
 function scanDirectory(path) {
     trace("SCAN", path);
-    
+
     return new Promise((resolve, reject) => {
         fs.readdir(path, { withFileTypes: true }, (err, files) => {
             currentScanned = path;
@@ -464,15 +473,12 @@ function scanDirectory(path) {
                         //     fullPath = path2;
                         // }
                         */
-                    } else if (
-                        fullPath.match(/^\/(Applications|private|dev|Library|System)$/) ||
-                        fullPath == os.homedir() + "/Library"
-                    ) {
-                        notice("IGNORE", fullPath);
-                    } else if (entry.isDirectory()) {
+                    } else if (entry.isDirectory() && isValidDirectory(fullPath)) {
                         // directories.push(fullPath);
                         pathList.push(fullPath);
                         trace("ADD", fullPath);
+                    } else {
+                        notice("IGNORE", fullPath);
                     }
                 });
                 Promise.all(checks).then(() => resolve(pathList));
