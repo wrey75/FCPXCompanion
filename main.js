@@ -17,12 +17,10 @@ function createWindow() {
     win.webContents.openDevTools();
     win.loadFile('src/index.html')
     // Open the DevTools.
-
 }
 
 app.whenReady().then(() => {
-    createWindow()
-
+    createWindow();
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
             createWindow()

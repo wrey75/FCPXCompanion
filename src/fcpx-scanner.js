@@ -11,21 +11,20 @@ const tty = require("tty");
 const crypto = require("crypto");
 const os = require("os");
 const path = require("path");
+const sax = require("sax");
 // Importing dialog module using remote
 // const dialog = electron.remote.dialog;
 
 var currentScanned = "/";
 var scanErrors = [];
-var rootDisk = null;
 var fileMap = {};
-var extraFiles = [];
 var fcpxLibraries = [];
 var fcpxBackups = [];
 var fcpxCaches = [];
 var verbose = 1;
 
-const BACKUP_DIR = "/Volumes/FCPSlave";
-//const BACKUP_DIR = "/Users/Shared/FCPSlave"; // For test purposes only
+//const BACKUP_DIR = "/Volumes/FCPSlave";
+const BACKUP_DIR = "/Users/Shared/FCPSlave"; // For test purposes only
 
 function formattedText(type, message, color = "none") {
     var texte = "                    ".substring(0, 15 - type.length) + type + ": " + message;
@@ -71,8 +70,16 @@ function warning(type, message) {
     process.stdout.write(formattedText(type, message, "red") + "\n");
 }
 
+/**
+ * Checks, based on the extension, if the file is basically a media (sound, image or video). Note we could have
+ * not the complete list of accepeted media but for the scan of a libraray, all the files are taken into account, not
+ * only the following ones.
+ *
+ * @param {string} path
+ * @returns a boolean
+ */
 function isVideoFile(path) {
-    return path.match(/\.(mts|avi|mkv|mov|mp4|m4v|m4a|mp2|mp3|aiff|wav|aac|jpg|jpeg|gif|psd|png|tiff)$/i);
+    return path.match(/\.(mts|avi|mkv|mov|mp4|m4v|m4a|mp2|mp3|aiff|wav|aac|jpg|jpeg|gif|psd|png|tif|tiff)$/i);
 }
 
 /**
@@ -84,14 +91,9 @@ function isVideoFile(path) {
  */
 function scanPList(path) {
     var data = {};
-    // var xmlData = fs.readFileSync(path, "utf8");
-
-    // const xml2js = require("xml2js");
-    // var json;
     try {
         var fileData = fs.readFileSync(path, "ascii");
-        var sax = require("sax"),
-            parser = sax.parser(true);
+        var parser = sax.parser(true);
         var key = "_";
         var mode = 0;
         parser.onerror = function (e) {
@@ -104,6 +106,8 @@ function scanPList(path) {
                 key = t;
             } else if (mode == 2) {
                 data[key] = t;
+            } else if (mode == 3) {
+                data[key] = new Date(t);
             }
             mode = 0;
             // console.log(JSON.stringify(data));
@@ -116,41 +120,12 @@ function scanPList(path) {
             else if (node.name == "integer") mode = 2;
             else if (node.name == "true") mode = 2;
             else if (node.name == "false") mode = 2;
+            else if (node.name == "date") mode = 3;
             else {
                 mode = 0;
             }
         };
-        // parser.onattribute = function (attr) {
-        //     // an attribute.  attr has "name" and "value"
-        // };
-        // parser.onend = function () {
-        //     // parser stream is done, and ready to have more stuff written to it.
-        // };
-
         parser.write(fileData).close();
-        /*
-            var parser = new xml2js.Parser();
-            parser.parseString(fileData.substring(0, fileData.length), function (err, result) {
-                json = JSON.stringify(result);
-                console.log(JSON.stringify(result));
-            });
-            console.log("File '" + path + "/ was successfully read.\n");
-            */
-        /*
-    // console.log(JSON.stringify(xmlDoc.window));
-    var children = xmlDoc.window.document.documentElement;
-    var key = "_";
-    console.log(JSON.stringify(children));
-    children.forEach((child) => {
-        if (child.type() == "element") {
-            if (child.name() == "key") key = child.text();
-            else if (child.name() == "string") data[key] = child.text();
-            else if (child.name() == "integer") data[key] = +child.text();
-            else if (child.name() == "true") data[key] = true;
-            else if (child.name() == "false") data[key] = false;
-        }
-    });
-    */
     } catch (err) {
         console.log(err);
         process.exit(1);
@@ -295,15 +270,28 @@ function loadLibrary(path) {
     return library;
 }
 
+/**
+ * This function checks if the path is a FCPX library. If it is, a scan is made inside
+ * and the value returned is true. If the library is a backup, the value returned is false.
+ *
+ * @param {string} path the path to check
+ * @returns true if it is a FCPX library.
+ */
 function registerLibrary(path) {
     if (path.match(/\.fcpbundle$/)) {
         var entry = fs.statSync(path);
         if (entry.isDirectory()) {
-            if (fs.existsSync(path + "/__BackupInfo.plist")) {
+            if (fs.existsSync(path + "/__BackupInfo.plist") && fs.existsSync(path + "/Settings.plist")) {
                 // we have a backup, not a real library.
+                const settings = scanPList(path + "/Settings.plist");
+                const bckInfos = scanPList(path + "/__BackupInfo.plist");
                 notice("BACKUP", path);
-                fcpxBackups.push(path);
-                return false;
+                fcpxBackups.push({
+                    'path': path,
+                    'libraryID': settings.libraryID,
+                    'backupDate': bckInfos.date
+                });
+                return true;
             }
             try {
                 var library = loadLibrary(path);
@@ -312,6 +300,7 @@ function registerLibrary(path) {
             } catch (err) {
                 console.warn("Can not register library.");
             }
+            notice("FCPX", path);
             return true;
         }
     }
@@ -438,27 +427,28 @@ function checkForBackupDisk() {
 
 function scanDirectory(path) {
     trace("SCAN", path);
-    var pathList = [];
+    
     return new Promise((resolve, reject) => {
         fs.readdir(path, { withFileTypes: true }, (err, files) => {
             currentScanned = path;
             if (err) {
                 warning(err.code, path);
-                reject(err);
+                resolve([]);
             } else {
                 // try {
                 // var directories = [];
                 // var files = fs.readdirSync(path, { withFileTypes: true });
                 // console.log(JSON.stringify(files));
                 var checks = [];
+                var pathList = [];
                 files.forEach((entry) => {
                     var fullPath = path.replace(/\/$/, "") + "/" + entry.name;
                     if (entry.name.match(/^\./)) {
                         //console.log("Entry " + fullPath + " ignored.")
+                    } else if (registerLibrary(fullPath)) {
+                        // Do not go further.
                     } else if (isVideoFile(fullPath) && entry.isFile()) {
                         checks.push(registerFile(fullPath));
-                    } else if (registerLibrary(fullPath)) {
-                        notice("FCPX", fullPath);
                     } else if (isFinalCutCache(fullPath)) {
                         notice("CACHE", fullPath);
                         /*  => symbolic links should NOT be followed because scanned elsewhere

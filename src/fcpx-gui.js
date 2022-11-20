@@ -195,22 +195,18 @@ refreshDisplay();
 
 var filesBackuped = 0;
 
-function backupAllFiles() {
-    backupPromises = searchBackupFiles(true).map((md5) => {
-        console.log("Adding " + md5);
-        new Promise((resolve, reject) => {
-            currentBackup = fileMap[md5].name;
-            backupFile(md5).then(() => {
-                filesBackuped++;
-                refreshDisplay();
-                resolve(md5);
-            });
-        });
-    });
-
-    Promise.all(backupPromises).then(() => {
-        console.log("Backup done. Program terminates.");
-    });
+async function backupAllFiles() {
+    backupPromises = searchBackupFiles(false);
+    console.log(backupPromises + " files to backup... We start...");
+    filesBackuped = 0;
+    while (filesBackuped < backupPromises.length) {
+        console.log("Adding " + md5 + "...");
+        currentBackup = fileMap[md5].name;
+        await backupFile(md5);
+        filesBackuped++;
+        refreshDisplay();
+    }
+    console.log("Backup done. Program terminates.");
 }
 
 function wait(milliseconds) {
@@ -221,7 +217,8 @@ async function startScanner() {
     var count = 0;
     while (scannedDirectories < nbDirectories) {
         refreshDisplay();
-        for(i = 0; i < 100 && (count < promises.length); i++) {
+        var i = 0;
+        while (i < 100 && count < promises.length) {
             promises[count++].then(
                 (result) => {
                     result.forEach((p) => {
@@ -236,13 +233,19 @@ async function startScanner() {
                     scannedDirectories++;
                 }
             );
+            i++;
         }
         await wait(500);
-        console.log("check dirs: " + scannedDirectories + "/" + i);
+        var message = "check dirs " + scannedDirectories + "/" + nbDirectories + "; i=" + i;
+        console.log(message);
     }
-    if (storageDirectory) {
-        // backupAllFiles();
-    }
+    console.log("All files scanned.");
 }
 
 startScanner();
+console.log("Storage directory is: " + storageDirectory);
+refreshDisplay();
+if (storageDirectory) {
+    console.log("Start to backup...");
+    backupAllFiles();
+}
