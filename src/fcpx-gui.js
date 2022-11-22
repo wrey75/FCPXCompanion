@@ -1,5 +1,4 @@
-var nbDirectories = 0;
-var scannedDirectories = 0;
+
 
 function diskSize(bytes) {
     // console.log("diskSize("+bytes+")")
@@ -43,21 +42,15 @@ function tag(name, attrs) {
 
 // var scannerTimer = setInterval(scanShowProgress, 5000);
 
-var nextDisplay = 0;
 var backupPromises = [];
 
-function refreshDisplay() {
-    if (nextDisplay < Date.now()) {
-        // return;
-    }
-    nextDisplay = Date.now() + 1000;
-
+function refreshStatus(status) {
     //console.log("show progress...");
     var textToDisplay = "All directories scanned.";
     // console.log("progress is " + scannedDirectories + "/" + nbDirectories);
-    if (nbDirectories > scannedDirectories && nbDirectories > 0) {
+    if (status.nbDirectories > status.scannedDirectories && status.nbDirectories > 0) {
         var path = "";
-        var parts = currentScanned.split("/");
+        var parts = status.currentScanned.split("/");
         if (parts.length > 2) {
             path = parts[0];
             var i = 1;
@@ -69,26 +62,26 @@ function refreshDisplay() {
             }
             path = path + "/" + parts[parts.length - 1];
         } else {
-            path = currentScanned;
+            path = status.currentScanned;
         }
         textToDisplay = "Scanning " + path;
-    } else if (storageDirectory && filesBackuped < backupPromises.length) {
+    } else if (status.storageDirectory && status.filesBackuped < backupPromises.length) {
         textToDisplay = "Backuping " + currentBackup;
     } else {
         // clearInterval(scannerTimer);
         document.getElementById("spinner").style.display = "none";
     }
-    var size = Math.floor((scannedDirectories * 100.0) / nbDirectories);
-    if (storageDirectory) {
+    var size = Math.floor((status.cannedDirectories * 100.0) / status.nbDirectories);
+    if (status.storageDirectory) {
         size = size / 2 + Math.floor(((filesBackuped + 1) * 50.0) / (backupPromises.length + 1));
     }
     const text = "width: " + size + "%";
     const domScan = document.getElementById("scanProgress");
     domScan.getElementsByTagName("div")[0].style = text;
     document.getElementById("scanText").innerText = textToDisplay;
-    if (fcpxLibraries) {
+    if (status.fcpxLibraries) {
         var html = "";
-        fcpxLibraries.forEach((lib, index) => {
+        status.fcpxLibraries.forEach((lib, index) => {
             var mediaSize = 0;
             var links = 0;
             var lost = 0;
@@ -131,35 +124,26 @@ function refreshDisplay() {
 
         infos = "";
         infos += "<table>";
-        infos += "<tr><td>Scanned directories:</td><td>" + scannedDirectories + "</td></tr>";
-        infos += "<tr><td>Total of directories:</td><td>" + nbDirectories + "</td></tr>";
-        infos += "<tr><td>Registered files:</td><td>" + Object.keys(fileMap).length + "</td></tr>";
-        if (storageDirectory) {
-            infos += "<tr><td>Backup Storage:</td><td>" + storageDirectory + "</td></tr>";
-            infos += "<tr><td>Files backuped:</td><td>" + filesBackuped + "</td></tr>";
-            infos += "<tr><td>Files to backup:</td><td>" + backupPromises.length + "</td></tr>";
+        infos += "<tr><td>Scanned directories:</td><td>" + status.scannedDirectories + "</td></tr>";
+        infos += "<tr><td>Total of directories:</td><td>" + status.nbDirectories + "</td></tr>";
+        infos += "<tr><td>Registered files:</td><td>" + Object.keys(status.fileMap).length + "</td></tr>";
+        if (status.storageDirectory) {
+            infos += "<tr><td>Backup Storage:</td><td>" + status.storageDirectory + "</td></tr>";
+            infos += "<tr><td>Files backuped:</td><td>" + status.filesBackuped + "</td></tr>";
+            infos += "<tr><td>Files to backup:</td><td>" + status.backupPromises.length + "</td></tr>";
         }
         infos += "</table>";
         $("#informationContents").html(infos);
     }
 }
 
-function deleteEventDirectory(index, subdir) {
-    fcpxLibraries[index].events.forEach((evt) => {
-        path = fcpxLibraries[index].path + "/" + evt.name + "/" + subdir;
-        deleteDirectoryContents(path);
-    });
-    reloadLibrary(index);
-    refreshDisplay();
-}
-
 function deleteRender(index) {
-    deleteEventDirectory(index, "Render Files");
+    window.api.deleteRender(index);
     return false;
 }
 
 function deleteTranscoded(index) {
-    deleteEventDirectory(index, "Transcoded Media");
+    window.api.deleteTanscoded(index);
     return false;
 }
 
@@ -182,70 +166,74 @@ jQuery(function () {
     selectTab("library");
 });
 
-function addUserDirectory(path) {
-    nbDirectories++;
-    addScanDirectory(path);
-}
 
-const homedir = require("os").homedir();
-checkForBackupDisk();
-addUserDirectory("/Users");
-addUserDirectory("/Volumes");
-refreshDisplay();
 
-var filesBackuped = 0;
+// checkForBackupDisk();
 
-async function backupAllFiles() {
-    backupPromises = searchBackupFiles(false);
-    console.log(backupPromises + " files to backup... We start...");
-    filesBackuped = 0;
-    while (filesBackuped < backupPromises.length) {
-        console.log("Adding " + md5 + "...");
-        currentBackup = fileMap[md5].name;
-        await backupFile(md5);
-        filesBackuped++;
-        refreshDisplay();
-    }
-    console.log("Backup done. Program terminates.");
-}
+// refreshDisplay();
 
-function wait(milliseconds) {
-    return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
+// var filesBackuped = 0;
 
-async function startScanner() {
-    var count = 0;
-    while (scannedDirectories < nbDirectories) {
-        refreshDisplay();
-        var i = 0;
-        while (i < 100 && count < promises.length) {
-            promises[count++].then(
-                (result) => {
-                    result.forEach((p) => {
-                        addUserDirectory(p);
-                    });
-                    refreshDisplay();
-                    process.stdout.write("\r" + scannedDirectories + "/" + nbDirectories + "...");
-                    scannedDirectories++;
-                },
-                (err) => {
-                    console.warn(err.message);
-                    scannedDirectories++;
-                }
-            );
-            i++;
-        }
-        await wait(500);
-        var message = "check dirs " + scannedDirectories + "/" + nbDirectories + "; i=" + i;
-        console.log(message);
-    }
-    console.log("All files scanned.");
-}
+// async function backupAllFiles() {
+//     backupPromises = searchBackupFiles(false);
+//     console.log(backupPromises + " files to backup... We start...");
+//     filesBackuped = 0;
+//     while (filesBackuped < backupPromises.length) {
+//         console.log("Adding " + md5 + "...");
+//         currentBackup = fileMap[md5].name;
+//         await backupFile(md5);
+//         filesBackuped++;
+//         refreshDisplay();
+//     }
+//     console.log("Backup done. Program terminates.");
+// }
 
-startScanner();
-console.log("Storage directory is: " + storageDirectory);
-refreshDisplay();
-if (storageDirectory) {
-    console.log("Start to backup...");
-    backupAllFiles();
-}
+// function wait(milliseconds) {
+//     return new Promise((resolve) => setTimeout(resolve, milliseconds));
+// }
+
+// async function startScanner() {
+//     var count = 0;
+//     while (scannedDirectories < nbDirectories) {
+//         refreshDisplay();
+//         var i = 0;
+//         while (i < 100 && count < promises.length) {
+//             promises[count++].then(
+//                 (result) => {
+//                     result.forEach((p) => {
+//                         addUserDirectory(p);
+//                     });
+//                     refreshDisplay();
+//                     process.stdout.write("\r" + scannedDirectories + "/" + nbDirectories + "...");
+//                     scannedDirectories++;
+//                 },
+//                 (err) => {
+//                     console.warn(err.message);
+//                     scannedDirectories++;
+//                 }
+//             );
+//             i++;
+//         }
+//         await wait(500);
+//         var message = "check dirs " + scannedDirectories + "/" + nbDirectories + "; i=" + i;
+//         console.log(message);
+//     }
+//     console.log("All files scanned.");
+// }
+
+// startScanner();
+// console.log("Storage directory is: " + storageDirectory);
+// refreshDisplay();
+// if (storageDirectory) {
+//     console.log("Start to backup...");
+//     backupAllFiles();
+// }
+
+setInterval(function(){
+    window.api.workStatus().then(v => refreshStatus(v));
+}, 500);
+
+
+// window.api.refresh = function(func){
+//     ipcRenderer.on("refresh", (event, ...args) => func(event, ...args));
+// };
