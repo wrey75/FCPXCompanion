@@ -29,7 +29,13 @@ async function createWindow() {
         refreshDisplay();
     }
 
-    ipcMain.handle('work-status', (event, title) => {
+    ipcMain.handle('add-directory', (event, dir) => {
+        return new Promise((resolve, reject) => {
+            addScanDirectory(dir);
+        });
+    });
+
+    ipcMain.handle('work-status', (event) => {
         return new Promise((resolve, reject) => {
             const status = {
                 nbDirectories: nbDirectories,
@@ -627,6 +633,6 @@ function addUserDirectory(path) {
 // GOTO TO WORK NOW...
 function startProgram() {
     console.log("Started program!");
-    addUserDirectory("/Users");
-    addUserDirectory("/Volumes");
+    // addUserDirectory("/Users");
+    // addUserDirectory("/Volumes");
 }

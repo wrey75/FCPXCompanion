@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld("api", {
     deleteTranscoded: (idx) => ipcRenderer.send('delete-trancoded', idx),
     deleteRender: (idx) => ipcRenderer.send('delete-render', idx),
     workStatus: () => ipcRenderer.invoke('work-status'),
+    addDirectory: (dir) => ipcRenderer.invoke('add-directory', dir),
 });
 
 // ipcRenderer.on("refresh", (event, args) => {

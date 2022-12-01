@@ -233,7 +233,7 @@ setInterval(function(){
     window.api.workStatus().then(v => refreshStatus(v));
 }, 500);
 
-
+window.api.addDirectory("/Users")
 // window.api.refresh = function(func){
 //     ipcRenderer.on("refresh", (event, ...args) => func(event, ...args));
 // };
