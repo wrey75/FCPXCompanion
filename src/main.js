@@ -2,8 +2,10 @@ const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('path')
 const fs = require('fs')
 
+var win;
+
 function createWindow() {
-    const win = new BrowserWindow({
+    win = new BrowserWindow({
         width: 1200,
         height: 600,
         webPreferences: {
@@ -35,6 +37,11 @@ app.on('window-all-closed', () => {
         app.quit()
     }
 })
+
 /**
  * The main code for electron.
  */
+
+import './js/fcpx-scanner'
+
+

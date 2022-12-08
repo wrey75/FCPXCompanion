@@ -23,7 +23,7 @@ var fileMap = {};
 var extraFiles = [];
 var fcpxLibraries = [];
 var fcpxBackups = [];
-var verbose = 1;
+var verbose = 2;
 
 function formattedText(type, message, color = "none") {
     var texte = "                    ".substring(0, 15 - type.length) + type + ": " + message;
@@ -389,11 +389,29 @@ function directorySize(path) {
     return size;
 }
 
-var promises = [];
+function refresh() {
+    console.log("Called refresh() in MAIN");
+    const infos = {
+        'currentScanned': currentScanned,
+        scanErrors: scanErrors,
+        nbDirectories: nbDirectories,
+        scannedDirectories: scannedDirectories,
+        rootDisk: rootDisk,
+        fileMap: fileMap,
+        extraFiles: extraFiles,
+        fcpxLibraries: fcpxLibraries,
+        fcpxBackups: fcpxBackups
+    }
+    win.webContents.send('refresh-ui', infos);
+}
 
 function addUserDirectory(path) {
     nbDirectories++;
-    promises.push(scanDirectory(path));
+    refresh();
+    scanDirectory(path).then(list => {
+        refresh();
+        list.forEach(dir => addUserDirectory(dir));
+    })
 }
 
 function isValidDirectory(path) {
@@ -530,3 +548,5 @@ function backupFile(md5) {
         }
     });
 }
+
+addUserDirectory('/Users/wrey/Movies');

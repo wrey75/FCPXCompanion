@@ -40,21 +40,15 @@ function tag(name, attrs) {
 
 // var scannerTimer = setInterval(scanShowProgress, 5000);
 
-var nextDisplay = 0;
 var backupPromises = [];
 
-function refreshDisplay() {
-    if (nextDisplay < Date.now()) {
-        // return;
-    }
-    nextDisplay = Date.now() + 1000;
-
-    //console.log("show progress...");
+function refreshDisplay(infos) {
+    console.log("show progress...");
     var textToDisplay = "All directories scanned.";
     // console.log("progress is " + scannedDirectories + "/" + nbDirectories);
-    if (nbDirectories > scannedDirectories && nbDirectories > 0) {
+    if (infos.nbDirectories > infos.scannedDirectories && infos.nbDirectories > 0) {
         var path = "";
-        var parts = currentScanned.split("/");
+        var parts = infos.currentScanned.split("/");
         if (parts.length > 2) {
             path = parts[0];
             var i = 1;
@@ -66,18 +60,18 @@ function refreshDisplay() {
             }
             path = path + "/" + parts[parts.length - 1];
         } else {
-            path = currentScanned;
+            path = infos.currentScanned;
         }
         textToDisplay = "Scanning " + path;
-    } else if (storageDirectory && filesBackuped < backupPromises.length) {
-        textToDisplay = "Backuping " + currentBackup;
+    } else if (infos.storageDirectory && infos.filesBackuped < infos.backupPromises.length) {
+        textToDisplay = "Backuping " + infos.currentBackup;
     } else {
         // clearInterval(scannerTimer);
         document.getElementById("spinner").style.display = "none";
     }
-    var size = Math.floor((scannedDirectories * 100.0) / nbDirectories);
-    if (storageDirectory) {
-        size = size / 2 + Math.floor(((filesBackuped + 1) * 50.0) / (backupPromises.length + 1));
+    var size = Math.floor((infos.scannedDirectories * 100.0) / nbDirectories);
+    if (infos.storageDirectory) {
+        size = size / 2 + Math.floor(((filesBackuped + 1) * 50.0) / (infos.backupPromises.length + 1));
     }
     const text = "width: " + size + "%";
     const domScan = document.getElementById("scanProgress");
@@ -85,7 +79,7 @@ function refreshDisplay() {
     document.getElementById("scanText").innerText = textToDisplay;
     if (fcpxLibraries) {
         var html = "";
-        fcpxLibraries.forEach((lib, index) => {
+        infos.fcpxLibraries.forEach((lib, index) => {
             var mediaSize = 0;
             var links = 0;
             var lost = 0;
@@ -131,13 +125,13 @@ function refreshDisplay() {
         infos += "<tr><td>Scanned directories:</td><td>" + scannedDirectories + "</td></tr>";
         infos += "<tr><td>Total of directories:</td><td>" + nbDirectories + "</td></tr>";
         infos += "<tr><td>Registered files:</td><td>" + Object.keys(fileMap).length + "</td></tr>";
-        if (storageDirectory) {
+        if (infos.storageDirectory) {
             infos += "<tr><td>Backup Storage:</td><td>" + storageDirectory + "</td></tr>";
             infos += "<tr><td>Files backuped:</td><td>" + filesBackuped + "</td></tr>";
             infos += "<tr><td>Files to backup:</td><td>" + backupPromises.length + "</td></tr>";
         }
         infos += "</table>";
-        $("#informationContents").html(infos);
+        jQuery("#informationContents").html(infos);
     }
 }
 
@@ -178,6 +172,9 @@ jQuery(function () {
     });
     selectTab("library");
 });
+
+/*
+
 
 const homedir = require("os").homedir();
 checkForBackupDisk();
@@ -231,6 +228,6 @@ async function waitEndOfScan() {
     backupAllFiles();
 }
 
-waitEndOfScan();
+// waitEndOfScan();
 
-
+*/
