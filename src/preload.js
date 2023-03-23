@@ -4,5 +4,5 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('myAPI', {
-  handleRefresh: (callback) => ipcRenderer.on('refresh-ui', callback),
+  loadDirectory: (path) => ipcRenderer.invoke('dir:load', path),
 })
