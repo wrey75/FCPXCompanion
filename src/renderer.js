@@ -30,11 +30,20 @@
 //import './js/jquery.js';
 // import './js/fcpx-gui';
 
-console.log('👋 This message is being logged by "renderer.js", included via webpack');
+console.log(
+  '👋 This message is being logged by "renderer.js", included via webpack'
+);
 
 btn = document.getElementById("testBtn");
 
-btn.addEventListener('click', async () => {
-    const fileList = await window.myAPI.loadDirectory("/");
-    console.log(fileList);
+btn.addEventListener("click", () => {
+  const fileList = window.myAPI.loadDirectory("/");
+  console.log(fileList);
 });
+
+
+// console.log(window.myAPI.homedir());
+// window.myAPI.homedir().then(h => console.log("HOMEDIR = " + h));
+addUserDirectory("/Users/wrey/Movies");
+addUserDirectory("/Volumes");
+setInterval(refresh, 500);

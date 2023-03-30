@@ -43,7 +43,6 @@ function tag(name, attrs) {
 var backupPromises = [];
 
 function refreshDisplay(infos) {
-    console.log("show progress...");
     var textToDisplay = "All directories scanned.";
     // console.log("progress is " + scannedDirectories + "/" + nbDirectories);
     if (infos.nbDirectories > infos.scannedDirectories && infos.nbDirectories > 0) {
@@ -176,7 +175,7 @@ jQuery(function () {
 /*
 
 
-const homedir = require("os").homedir();
+
 checkForBackupDisk();
 addUserDirectory(homedir + "/Movies");
 addUserDirectory("/Volumes/FinalCutPro");
