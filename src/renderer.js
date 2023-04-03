@@ -43,7 +43,10 @@ btn.addEventListener("click", () => {
 
 
 // console.log(window.myAPI.homedir());
-// window.myAPI.homedir().then(h => console.log("HOMEDIR = " + h));
-addUserDirectory("/Users/wrey/Movies");
+checkForBackupDisk();
+window.myAPI.homedir().then(h => {
+    console.log("HOMEDIR = " + h);
+    addUserDirectory(h + "/Movies");
+});
 addUserDirectory("/Volumes");
 setInterval(refresh, 500);

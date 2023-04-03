@@ -9,11 +9,16 @@ var currentScanned = "/";
 var scanErrors = [];
 var nbDirectories = 0;
 var scannedDirectories = 0;
+var totalDirectories = 0;
 var rootDisk = null;
 var fileMap = {};
 var extraFiles = [];
 var fcpxLibraries = [];
 var fcpxBackups = [];
+var missingFiles = [];
+
+const BACKUP_DIR = '/Volumes/FCPSlave';
+// const BACKUP_DIR = "/Users/Shared/FCPSlave"; // For test purposes only
 
 function trace(type, message) {
     window.myAPI.trace(type, message);
@@ -149,7 +154,6 @@ async function deleteDirectoryContents(path) {
 async function isFinalCutCache(path) {
     if (path.match(/\.fcpcache$/)) {
         var entry = await fileStats(path);
-        console.warn(path + '-'+entry);
         return entry.directory && (await fileExists(path + "/info.plist"));
     }
     return false;
@@ -173,9 +177,7 @@ function reloadLibrary(index) {
  * @returns
  */
 async function loadLibrary(path) {
-    console.error(path + ": PLIST...");
     var library = await scanPList(path + "/Settings.plist");
-    console.error(path + ": PLISTED...");
     library.events = [];
     library.name = path.replace(/.*\//, "").replace(/\.fcpbundle$/, "");
     library.path = path;
@@ -184,7 +186,6 @@ async function loadLibrary(path) {
     library.mediaSize = +0;
     library.links = +0;
     library.lost = +0;
-
     
     var eventDir = await loadDirectory(path);
     for (var i = 0; i < eventDir.length; i++) {
@@ -260,18 +261,28 @@ async function copyFile(source, destination) {
 }
 
 async function registerFile(path) {
-    const md5 = await fileSignature(path);
-    var entry = fileMap[md5] || [];
-    const infos = await fileStats(path);
-    var newEntry = {
-        path: path,
-        md5: md5,
-        size: infos.size,
-    };
-    entry.push(newEntry);
-    fileMap[md5] = entry;
-    trace("REGISTER", md5 + " - " + path + (entry.length > 1 ? " = " + entry[0].path : ""));
-    return newEntry;
+    if(await fileExists(path)){
+        const md5 = await fileSignature(path);
+        var entry = fileMap[md5] || [];
+        const infos = await fileStats(path);
+        var newEntry = {
+            path: path,
+            md5: md5,
+            size: infos.size,
+        };
+        entry.push(newEntry);
+        fileMap[md5] = entry;
+        trace("REGISTER", md5 + " - " + path + (entry.length > 1 ? " = " + entry[0].path : ""));
+        return newEntry;
+    } else {
+        warning("MISSING", path);
+        missingFiles.push(path);
+        return {
+            path: path,
+            md5: null,
+            size: 0,
+        };;
+    }
 }
 
 /**
@@ -286,10 +297,9 @@ async function directorySize(path) {
         var files = await loadDirectory(path);
         for(var i = 0; i < files.length; i++){
             entry = files[i];
-            if (entry.isSymbolicLink()) {
+            if (entry.symbolicLink) {
                 size += kilobytes(0);
-            }
-            if (entry.directory) {
+            } else if (entry.directory) {
                 size += directorySize(path + "/" + entry.name);
             } else {
                 var infos = fileStats(path + "/" + entry.name);
@@ -297,20 +307,21 @@ async function directorySize(path) {
             }
         }
     } else {
-        console.warn(path + ": can not read");
+        trace("NOENT", path);
     }
     return size;
 }
 
 function refresh() {
-    console.log("Called refresh() in MAIN");
+    // console.log("Called refresh() in MAIN");
     const infos = {
         currentScanned: currentScanned,
         scanErrors: scanErrors,
-        nbDirectories: nbDirectories,
+        "totalDirectories": totalDirectories,
+        "nbDirectories": nbDirectories,
         scannedDirectories: scannedDirectories,
         rootDisk: rootDisk,
-        fileMap: fileMap,
+        filesInMap: Object.keys(fileMap).length,
         extraFiles: extraFiles,
         fcpxLibraries: fcpxLibraries,
         fcpxBackups: fcpxBackups,
@@ -320,10 +331,11 @@ function refresh() {
 
 function addUserDirectory(path) {
     nbDirectories++;
-    refresh();
     scanDirectory(path).then(data => {
-        console.warn(data);
-        refresh();
+        // console.warn(data);
+        data.forEach(name => {
+            addUserDirectory(path+'/'+name);
+        });
         nbDirectories--;
     });
     
@@ -338,8 +350,6 @@ function isValidDirectory(path) {
 var storageDirectory = null;
 
 async function checkForBackupDisk() {
-    // const BACKUP_DIR = '/Volumes/FCPSlave';
-    const BACKUP_DIR = "/Users/Shared/FCPSlave"; // For test purposes only
     if (await fileExists(BACKUP_DIR)) {
         storageDirectory = BACKUP_DIR + "/BackupStore";
         if (await fileExists(storageDirectory)) {
@@ -358,15 +368,21 @@ async function checkForBackupDisk() {
 }
 
 function loadDirectory(path) {
+    currentScanned = path;
     return window.myAPI.loadDirectory(path);
 }
 
 async function scanDirectory(path) {
+    if(path === BACKUP_DIR){
+        trace("FCPBACKUP", path);
+        return [];
+    }
+    nbDirectories++;
     trace("SCAN", path);
     var pathList = [];
-    currentScanned = path;
+    totalDirectories++;
     const files = await loadDirectory(path);
-    console.log(path + ": " + files.length + " files found.");
+    const dirList = [];
     for (var i = 0; i < files.length; i++) {
         const entry = files[i];
         var fullPath = path.replace(/\/$/, "") + "/" + entry.name;
@@ -375,10 +391,10 @@ async function scanDirectory(path) {
         } else if (isVideoFile(fullPath) && entry.file) {
             await registerFile(fullPath);
         } else if (fullPath.match(/\.fcpbundle$/)) {
-            console.warn("Scanning libray...")
+            //  console.warn("Scanning libray...")
             await registerLibrary(fullPath);
             notice("FCPX", fullPath);
-        } else if (isFinalCutCache(fullPath)) {
+        } else if (await isFinalCutCache(fullPath)) {
             notice("CACHE", fullPath);
             /*  => symbolic links should NOT be followed because scanned elsewhere
                                     } else if (entry.isSymbolicLink()) {
@@ -386,25 +402,16 @@ async function scanDirectory(path) {
                                         if (isValidDirectory(path2)) {
                                             pathList.push(path2);
                                         }
-                                        // while (entry.isSymbolicLink()) {
-                                        //     var path2 = fs.readlinkSync(fullPath);
-                                        //     notice("SYMLINK", fullPath + " => " + path2);
-                                        //     entry = fileStats(path2);
-                                        //     fullPath = path2;
-                                        // }
                                         */
-        } else if (
-            fullPath.match(/^\/(Applications|private|dev|Library|System)$/) ||
-            fullPath == await homedir() + "/Library"
-        ) {
+        } else if (fullPath.match(/^\/(Applications|private|dev|Library|System)$/)) {
             notice("IGNORE", fullPath);
         } else if (entry.directory) {
-            // directories.push(fullPath);
-            await scanDirectory(fullPath);
+            dirList.push(entry.name);
         }
     }
     scannedDirectories++;
-    return files.map( x => x.name);
+    nbDirectories--;
+    return dirList;
 }
 
 async function searchBackupFiles(externalFiles) {

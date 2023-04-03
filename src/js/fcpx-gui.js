@@ -44,8 +44,8 @@ var backupPromises = [];
 
 function refreshDisplay(infos) {
     var textToDisplay = "All directories scanned.";
-    // console.log("progress is " + scannedDirectories + "/" + nbDirectories);
-    if (infos.nbDirectories > infos.scannedDirectories && infos.nbDirectories > 0) {
+    jQuery("#debug").html("<pre>" + JSON.stringify(infos, null, 2) +"</pre>");
+    if (infos.nbDirectories > 0) {
         var path = "";
         var parts = infos.currentScanned.split("/");
         if (parts.length > 2) {
@@ -65,10 +65,9 @@ function refreshDisplay(infos) {
     } else if (infos.storageDirectory && infos.filesBackuped < infos.backupPromises.length) {
         textToDisplay = "Backuping " + infos.currentBackup;
     } else {
-        // clearInterval(scannerTimer);
         document.getElementById("spinner").style.display = "none";
     }
-    var size = Math.floor((infos.scannedDirectories * 100.0) / nbDirectories);
+    var size = Math.floor((infos.scannedDirectories * 100.0) / infos.totalDirectories);
     if (infos.storageDirectory) {
         size = size / 2 + Math.floor(((filesBackuped + 1) * 50.0) / (infos.backupPromises.length + 1));
     }
@@ -119,18 +118,18 @@ function refreshDisplay(infos) {
         });
         $("#libraryContents").html(html);
 
-        infos = "";
-        infos += "<table>";
-        infos += "<tr><td>Scanned directories:</td><td>" + scannedDirectories + "</td></tr>";
-        infos += "<tr><td>Total of directories:</td><td>" + nbDirectories + "</td></tr>";
-        infos += "<tr><td>Registered files:</td><td>" + Object.keys(fileMap).length + "</td></tr>";
+        var txt = "";
+        txt += "<table>";
+        txt += "<tr><td>Scanned directories:</td><td>" + infos.scannedDirectories + "</td></tr>";
+        txt += "<tr><td>Total of directories:</td><td>" + infos.totalDirectories + "</td></tr>";
+        txt += "<tr><td>Registered files:</td><td>" + infos.filesInMap + "</td></tr>";
         if (infos.storageDirectory) {
-            infos += "<tr><td>Backup Storage:</td><td>" + storageDirectory + "</td></tr>";
-            infos += "<tr><td>Files backuped:</td><td>" + filesBackuped + "</td></tr>";
-            infos += "<tr><td>Files to backup:</td><td>" + backupPromises.length + "</td></tr>";
+            txt += "<tr><td>Backup Storage:</td><td>" + storageDirectory + "</td></tr>";
+            txt += "<tr><td>Files backuped:</td><td>" + filesBackuped + "</td></tr>";
+            txt += "<tr><td>Files to backup:</td><td>" + backupPromises.length + "</td></tr>";
         }
-        infos += "</table>";
-        jQuery("#informationContents").html(infos);
+        txt += "</table>";
+        jQuery("#informationContents").html(txt);
     }
 }
 
@@ -140,7 +139,7 @@ function deleteEventDirectory(index, subdir) {
         deleteDirectoryContents(path);
     });
     reloadLibrary(index);
-    refreshDisplay();
+    refresh();
 }
 
 function deleteRender(index) {
@@ -179,7 +178,7 @@ jQuery(function () {
 checkForBackupDisk();
 addUserDirectory(homedir + "/Movies");
 addUserDirectory("/Volumes/FinalCutPro");
-refreshDisplay();
+refresh();
 
 var filesBackuped = 0;
 
@@ -190,7 +189,7 @@ function backupAllFiles() {
             currentBackup = fileMap[md5].name;
             backupFile(md5);
             filesBackuped++;
-            refreshDisplay();
+            refresh();
             resolve(md5);
         });
     });
@@ -221,7 +220,7 @@ async function waitEndOfScan() {
             i++;
         }
         await wait(500);
-        refreshDisplay();
+        refresh();
         console.log("check at " + new Date());
     }
     backupAllFiles();

@@ -34,15 +34,14 @@ function handleDirectoryLoad(path) {
         if(!fs.existsSync(path)){
             warning("NOENT", path);
             resolve([]);
-        };
+        }
         fs.readdir(path, { withFileTypes: true }, (err, data) => {
-            if (err) {
+            if (err){
                 reject(err);
             } else {
-                // const promises = [];
                 const files = [];
                 data.forEach(x => {
-                    if (x.name.substring(0, 1) != '.' && (x.isFile() || x.isDirectory())) {
+                    if (x.name.substring(0, 1) != '.' && (x.isSymbolicLink() || x.isFile() || x.isDirectory())) {
                         files.push({
                             path: path +'/'+ x.name,
                             directory: x.isDirectory(),
@@ -50,18 +49,9 @@ function handleDirectoryLoad(path) {
                             symLink: x.isSymbolicLink(),
                             name: x.name,
                         })
-                        // promises.push(new Promise((resolve, reject) => {
-                        //     const stats = fs.statSync(path +'/'+ x.name);
-                        //     resolve(stats);
-                        // }));
                     }
                 });
-                // Promise.all(promises).then((statList => {
-                //     for(var i = 0; i < statList.length; i++){
-                //         files[i].size = statList[i].size;
-                //     }
-                    resolve(files);
-                // }))
+                resolve(files);
             }
         })
     });
@@ -113,7 +103,11 @@ function handleFileSignature(path) {
         const BUFFER_SIZE = 64 * 1024;
         const buf = Buffer.alloc(BUFFER_SIZE);
         try {
-            const fd = fs.openSync(path);
+            if(!fs.existsSync(path)){
+                resolve(null);
+            }
+            const path1 = fs.realpathSync(path);
+            const fd = fs.openSync(path1);
             const infos = fs.fstatSync(fd);
             const hash = crypto.createHash("md5");
             fs.readSync(fd, buf, {
@@ -137,15 +131,25 @@ function handleFileSignature(path) {
 
 function handleFileStats(aPath) {
     return new Promise((resolve, reject) => {
-        res = fs.statSync(aPath);
-        const ret = {
-            directory: res.isDirectory(),
-            file: res.isFile(),
-            symbolicLink: res.isSymbolicLink(),
-            name: path.basename(aPath),
-            size: res.size
-        };
-        resolve(ret);
+        if(fs.existsSync(aPath)){
+            res = fs.statSync(aPath);
+            const ret = {
+                directory: res.isDirectory(),
+                file: res.isFile(),
+                symbolicLink: res.isSymbolicLink(),
+                name: path.basename(aPath),
+                size: res.size
+            };
+            resolve(ret);
+        } else {
+            resolve({
+                directory: false,
+                file: false,
+                symbolicLink: false,
+                name: null,
+                size: 0
+            });
+        }
     });
 }
 
@@ -201,10 +205,13 @@ function handleRemoveFile(path){
     });
 }
 
+
 function handleCopyFile(src, dst) {
     return new Promise((resolve, reject) => {
-        fs.copyFile(src, dst, err => {
+        // Copy and rename to ensure no partial copy
+        fs.copyFile(src, dst + "~", err => {
             if (err) throw err;
+            fs.renameSync(dst + "~", dst);
             notice("COPIED", src + ' => ' + dst);
             resolve(true);
         })
