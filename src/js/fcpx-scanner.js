@@ -12,9 +12,10 @@ var scannedDirectories = 0;
 var totalDirectories = 0;
 var rootDisk = null;
 var fileMap = {};
+var fileIndex = {};
 var extraFiles = [];
 var fcpxLibraries = [];
-var fcpxBackups = [];
+var fcpxBackups = []; // The backups made by Apple found
 var missingFiles = [];
 
 const BACKUP_DIR = '/Volumes/FCPSlave';
@@ -34,6 +35,10 @@ function warning(type, message) {
 
 function deleteFile(path){
     window.myAPI.unlink(path);
+}
+
+function shellOpen(path){
+    window.myAPI.shellOpen(path);
 }
 
 function removeDirectory(path){
@@ -257,11 +262,19 @@ async function fileRead(path) {
 }
 
 async function copyFile(source, destination) {
-    return await window.myAPI.fileRead(source, destination);
+    return await window.myAPI.copyFile(source, destination);
+}
+
+function addToIndex(name, path) {
+    if(!(name in fileIndex)) {
+        fileIndex[name] = [];
+    }
+    fileIndex[name].push(path);
 }
 
 async function registerFile(path) {
-    if(await fileExists(path)){
+    currentScanned = path;
+    // if(await fileExists(path)){
         const md5 = await fileSignature(path);
         var entry = fileMap[md5] || [];
         const infos = await fileStats(path);
@@ -272,17 +285,18 @@ async function registerFile(path) {
         };
         entry.push(newEntry);
         fileMap[md5] = entry;
+        addToIndex(infos.name, path);
         trace("REGISTER", md5 + " - " + path + (entry.length > 1 ? " = " + entry[0].path : ""));
         return newEntry;
-    } else {
-        warning("MISSING", path);
-        missingFiles.push(path);
-        return {
-            path: path,
-            md5: null,
-            size: 0,
-        };;
-    }
+    // } else {
+    //     warning("MISSING", path);
+    //     missingFiles.push(path);
+    //     return {
+    //         path: path,
+    //         md5: null,
+    //         size: 0,
+    //     };;
+    // }
 }
 
 /**
@@ -354,6 +368,7 @@ async function checkForBackupDisk() {
         storageDirectory = BACKUP_DIR + "/BackupStore";
         if (await fileExists(storageDirectory)) {
             const data = await fileRead(storageDirectory + "/store.json");
+            notice("JSON", data);
             backupStore = JSON.parse(data);
             console.log("Backup store loaded.");
         } else {
@@ -363,8 +378,10 @@ async function checkForBackupDisk() {
             await mkdirs(storageDirectory + "/Folders", false);
             await fileWrite(storageDirectory + "/store.json",JSON.stringify({}));
         }
+        console.log("BACKUP STORE => " + storageDirectory);
+        return storageDirectory;
     }
-    console.log("checkForBackupDisk => " + storageDirectory);
+    return null;
 }
 
 function loadDirectory(path) {
@@ -389,7 +406,8 @@ async function scanDirectory(path) {
         if (entry.name.match(/^\./)) {
             //console.log("Entry " + fullPath + " ignored.")
         } else if (isVideoFile(fullPath) && entry.file) {
-            await registerFile(fullPath);
+            notice("VIDEO", fullPath);
+            addToIndex(entry.name, fullPath);
         } else if (fullPath.match(/\.fcpbundle$/)) {
             //  console.warn("Scanning libray...")
             await registerLibrary(fullPath);
@@ -415,7 +433,6 @@ async function scanDirectory(path) {
 }
 
 async function searchBackupFiles(externalFiles) {
-    console.log("searchBackupFiles...");
     const fileList = [];
     const klist = Object.keys(fileMap).filter((key) => externalFiles || fileMap[key].some((e) => e.library != null));
     for(var i = 0; i < klist.length; i++){
@@ -424,7 +441,7 @@ async function searchBackupFiles(externalFiles) {
         var files = [];
         if (fileExists(storageDirectory + "/Files/" + md5)) {
             filename = subdir + "/" + md5;
-            files = await loadDirectory(subdir).filter((name) => name.startsWith(md5));
+            files = (await loadDirectory(subdir)).filter((name) => name.startsWith(md5));
         }
         if (files.length < 1) {
             fileList.push(md5);

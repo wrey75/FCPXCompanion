@@ -40,6 +40,10 @@ function tag(name, attrs) {
 
 // var scannerTimer = setInterval(scanShowProgress, 5000);
 
+function jstr(v){
+    return "'" + v.replace('\'', '\\\'') + "'";
+}
+
 var backupPromises = [];
 
 function refreshDisplay(infos) {
@@ -51,7 +55,7 @@ function refreshDisplay(infos) {
         if (parts.length > 2) {
             path = parts[0];
             var i = 1;
-            while (i < parts.length - 1 && path.length + parts[parts.length - 1].length < 40) {
+            while (i < parts.length - 1 && (path.length + + parts[i].length + parts[parts.length - 1].length) < 45) {
                 path = path + "/" + parts[i++];
             }
             if (i < parts.length - 1) {
@@ -87,7 +91,18 @@ function refreshDisplay(infos) {
                 lost += e.lost.length;
             });
             html += tag("li", { class: "list-group-item", id: "library-" + index });
-            html += "<b>" + escapeHtml(lib.name) + "</b> <small>(" + lib.events.length + " events)</small> <br>";
+            html += '<small><code>' + lib.libraryID + '</code></small><br>'
+            html += "<b>" + escapeHtml(lib.name) + "</b>"
+                + ' <i class="bi bi-box-arrow-up-right" onClick="return shellOpen(' + jstr(lib.path) + ')"></i>'
+                + " <small>(";
+            if(lib.events.length > 1){
+                html += lib.events.length + " events";
+            } else if(lib.events.length == 1){
+                html += "1 event";
+            } else {
+                html += "no event";
+            }
+            html += ")</small> <br>";
             html += "<small>" + escapeHtml(lib.path) + "</small><br>";
             html += "<small>";
             if (lib.proxySize == 0) {
@@ -175,7 +190,6 @@ jQuery(function () {
 
 
 
-checkForBackupDisk();
 addUserDirectory(homedir + "/Movies");
 addUserDirectory("/Volumes/FinalCutPro");
 refresh();

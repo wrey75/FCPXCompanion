@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('myAPI', {
   trace: (type, message) => ipcRenderer.send("log:trace", type, message),
   notice: (type, message) => ipcRenderer.send("log:notice", type, message),
   warning: (type, message) => ipcRenderer.send("log:warning", type, message),
+  shellOpen: (path) => ipcRenderer.send("shell:open", path),
   md5file: (path) => ipcRenderer.invoke("file:md5", path),
   fileExists: (path) => ipcRenderer.invoke("file:exists", path),
   fileStats: (path) => ipcRenderer.invoke("file:stat", path),

@@ -43,7 +43,13 @@ btn.addEventListener("click", () => {
 
 
 // console.log(window.myAPI.homedir());
-checkForBackupDisk();
+checkForBackupDisk().then( path => {
+    // console.warn("BACKUP = " + path);
+    if(path){
+        jQuery("#backupContents").html("Backup will be done at "+ path);
+    }
+})
+
 window.myAPI.homedir().then(h => {
     console.log("HOMEDIR = " + h);
     addUserDirectory(h + "/Movies");

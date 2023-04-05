@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron')
+const { app, BrowserWindow, ipcMain, shell } = require('electron')
 const tty = require("tty");
 const path = require('path');
 const fs = require('fs');
@@ -31,19 +31,19 @@ function createWindow() {
  */
 function handleDirectoryLoad(path) {
     return new Promise((resolve, reject) => {
-        if(!fs.existsSync(path)){
+        if (!fs.existsSync(path)) {
             warning("NOENT", path);
             resolve([]);
         }
         fs.readdir(path, { withFileTypes: true }, (err, data) => {
-            if (err){
+            if (err) {
                 reject(err);
             } else {
                 const files = [];
                 data.forEach(x => {
                     if (x.name.substring(0, 1) != '.' && (x.isSymbolicLink() || x.isFile() || x.isDirectory())) {
                         files.push({
-                            path: path +'/'+ x.name,
+                            path: path + '/' + x.name,
                             directory: x.isDirectory(),
                             file: x.isFile(),
                             symLink: x.isSymbolicLink(),
@@ -103,7 +103,7 @@ function handleFileSignature(path) {
         const BUFFER_SIZE = 64 * 1024;
         const buf = Buffer.alloc(BUFFER_SIZE);
         try {
-            if(!fs.existsSync(path)){
+            if (!fs.existsSync(path)) {
                 resolve(null);
             }
             const path1 = fs.realpathSync(path);
@@ -131,7 +131,7 @@ function handleFileSignature(path) {
 
 function handleFileStats(aPath) {
     return new Promise((resolve, reject) => {
-        if(fs.existsSync(aPath)){
+        if (fs.existsSync(aPath)) {
             res = fs.statSync(aPath);
             const ret = {
                 directory: res.isDirectory(),
@@ -159,35 +159,36 @@ function handleFileExists(path) {
     });
 }
 
-function handleFileRead(path){
+function handleFileRead(path) {
     return new Promise((resolve, reject) => {
-        fs.readFile(path, (err, data) => {
+        fs.readFile(path, 'utf8', (err, data) => {
             if (err) reject(err);
             resolve(data);
         });
     });
 }
 
-function handleFileWrite(path, contents){
+function handleFileWrite(path, contents) {
     return new Promise((resolve, reject) => {
-    fs.writeFile(path, contents,
-        (err) => {
-            if (err) reject(err);
-            resolve(contents.length);
-        }
-    )});
+        fs.writeFile(path, contents,
+            (err) => {
+                if (err) reject(err);
+                resolve(contents.length);
+            }
+        );
+    });
 }
 
-function handleMakeDirectory(path, recursive){
+function handleMakeDirectory(path, recursive) {
     return new Promise((resolve, reject) => {
-        fs.mkdir(path, {"recursive": recursive}, (err, data) => {
+        fs.mkdir(path, { "recursive": recursive }, (err, data) => {
             if (err) reject(err);
             resolve(data);
         });
     });
 }
 
-function handleRemoveDirectory(path){
+function handleRemoveDirectory(path) {
     return new Promise((resolve, reject) => {
         fs.rmdir(path, (err, data) => {
             if (err) reject(err);
@@ -196,7 +197,7 @@ function handleRemoveDirectory(path){
     });
 }
 
-function handleRemoveFile(path){
+function handleRemoveFile(path) {
     return new Promise((resolve, reject) => {
         fs.unlink(path, (err, data) => {
             if (err) reject(err);
@@ -237,9 +238,9 @@ function handleFileLink(ref, newRef) {
  */
 function handlePList(path) {
     return new Promise((resolve, reject) => {
-        fs.readFile(path, {encoding: "ascii"}, (err,fileData) => {
+        fs.readFile(path, { encoding: "ascii" }, (err, fileData) => {
             var data = {};
-            if(err) reject(err);
+            if (err) reject(err);
             parser = sax.parser(true);
             var key = "_";
             var mode = 0;
@@ -312,6 +313,9 @@ app.whenReady().then(() => {
     ipcMain.on('log:trace', (event, type, message) => trace(type, message));
     ipcMain.on('log:notice', (event, type, message) => notice(type, message));
     ipcMain.on('log:warning', (event, type, message) => warning(type, message));
+    ipcMain.on('shell:open', (event, path) => {
+        shell.openPath(path);
+    });
     ipcMain.handle("file:md5", (event, path) => handleFileSignature(path));
     ipcMain.handle("file:stat", (event, path) => handleFileStats(path));
     ipcMain.handle("file:exists", (event, path) => handleFileExists(path));
