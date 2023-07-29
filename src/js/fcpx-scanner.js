@@ -12,7 +12,6 @@ var scannedDirectories = 0;
 var totalDirectories = 0;
 var rootDisk = null;
 var fileMap = {};
-var fileIndex = {};
 var extraFiles = [];
 var fcpxLibraries = [];
 var fcpxBackups = []; // The backups made by Apple found
@@ -33,15 +32,15 @@ function warning(type, message) {
     window.myAPI.warning(type, message);
 }
 
-function deleteFile(path){
+function deleteFile(path) {
     window.myAPI.unlink(path);
 }
 
-function shellOpen(path){
+function shellOpen(path) {
     window.myAPI.shellOpen(path);
 }
 
-function removeDirectory(path){
+function removeDirectory(path) {
     window.myAPI.rmdir(path);
 }
 
@@ -50,7 +49,7 @@ async function homedir() {
     return window.myAPI.homedir();
 }
 
-async function scanPList(path){
+async function scanPList(path) {
     return window.myAPI.scanPList(path);
 
 }
@@ -69,12 +68,12 @@ async function mkdirs(path, recursive) {
     return window.myAPI.mkdirs(path, recursive);
 }
 
-async function fileWrite(path, contents){
+async function fileWrite(path, contents) {
     return window.myAPI.fileWrite(path, contents);
 }
 
 
-async function fslink(current, newOne){
+async function fslink(current, newOne) {
     return window.myAPI.fileWrite(current, newOne);
 }
 
@@ -95,19 +94,20 @@ function isVideoFile(path) {
     );
 }
 
+
 async function scanEventFiles(library, event, path) {
     const files = await loadDirectory(path);
-    for(var i = 0; i < files.length; i++){
+    for (var i = 0; i < files.length; i++) {
         const e = files[i];
-        if (e.symbolicLink) {
-            event.links++;
+        if (e.symLink) {
             try {
                 var realPath = path + "/" + e.name;
                 trace("SYMLINK", path + "/" + e.name + " => " + realPath);
                 var infos = await registerFile(realPath);
-                infos.library = library;
-                infos.event = event;
-                infos.from = path + "/" + e.name;
+                event.links.push({
+                    md5: infos.md5,
+                    path: path + "/" + e.name
+                });
             } catch (err) {
                 if (err.code === "ENOENT") {
                     event.lost.push(e.name);
@@ -121,9 +121,11 @@ async function scanEventFiles(library, event, path) {
             await scanEventFiles(library, event, path + "/" + e.name);
         } else {
             var infos = await registerFile(path + "/" + e.name);
-            infos.library = library;
-            infos.event = event;
             event.size += kilobytes(infos.size);
+            event.files.push({
+                md5: infos.md5,
+                path: path + "/" + e.name
+            });
         }
     }
 }
@@ -137,7 +139,7 @@ async function scanEventFiles(library, event, path) {
 async function deleteDirectoryContents(path) {
     if (await fileExists(path)) {
         var files = await loadDirectory(path);
-        for(var i = 0; i < files.length; i++){
+        for (var i = 0; i < files.length; i++) {
             const entry = files[i0];
             var full = path + "/" + entry.name;
             if (entry.directory) {
@@ -191,7 +193,7 @@ async function loadLibrary(path) {
     library.mediaSize = +0;
     library.links = +0;
     library.lost = +0;
-    
+
     var eventDir = await loadDirectory(path);
     for (var i = 0; i < eventDir.length; i++) {
         const ent = eventDir[i];
@@ -199,9 +201,10 @@ async function loadLibrary(path) {
             var event = {
                 name: ent.name,
                 size: +0,
-                links: +0,
+                links: [],
                 projects: [], // name of projects in the event
                 lost: [], // lost symbolic links
+                files: [] // List of files
             };
             await scanEventFiles(
                 library,
@@ -209,9 +212,9 @@ async function loadLibrary(path) {
                 path + "/" + ent.name + "/Original Media"
             );
             const files = await loadDirectory(path + "/" + ent.name);
-            for(var j =0; j < files.length; j++){
+            for (var j = 0; j < files.length; j++) {
                 const f = files[j];
-                if (await fileExists(path +"/" + ent.name + "/" + f.name + "/CurrentVersion.fcpevent" )) {
+                if (await fileExists(path + "/" + ent.name + "/" + f.name + "/CurrentVersion.fcpevent")) {
                     event.projects.push(f.name);
                 }
             }
@@ -221,7 +224,7 @@ async function loadLibrary(path) {
             library.renderSize += event.renderSize;
             library.proxySize += event.proxySize;
             library.lost += event.lost.length;
-            library.links += event.links;
+            library.links += event.links.length + event.lost.length;
         }
     }
     return library;
@@ -265,29 +268,24 @@ async function copyFile(source, destination) {
     return await window.myAPI.copyFile(source, destination);
 }
 
-function addToIndex(name, path) {
-    if(!(name in fileIndex)) {
-        fileIndex[name] = [];
-    }
-    fileIndex[name].push(path);
-}
-
 async function registerFile(path) {
     currentScanned = path;
     // if(await fileExists(path)){
-        const md5 = await fileSignature(path);
-        var entry = fileMap[md5] || [];
-        const infos = await fileStats(path);
-        var newEntry = {
-            path: path,
-            md5: md5,
-            size: infos.size,
+    const md5 = await fileSignature(path);
+    var entry = fileMap[md5];
+    const infos = await fileStats(path);
+    if (entry == null) {
+        entry = {
+            'md5': md5,
+            'size': infos.size,
+            'backuped': 0, // Number of backuped files (0 = none)
+            'entries': []
         };
-        entry.push(newEntry);
         fileMap[md5] = entry;
-        addToIndex(infos.name, path);
-        trace("REGISTER", md5 + " - " + path + (entry.length > 1 ? " = " + entry[0].path : ""));
-        return newEntry;
+    }
+    entry.entries.push(path);
+    trace("REGISTER", md5 + " - " + path);
+    return entry;
     // } else {
     //     warning("MISSING", path);
     //     missingFiles.push(path);
@@ -306,22 +304,26 @@ async function registerFile(path) {
  * @returns the number of bytes
  */
 async function directorySize(path) {
-    var size = 0;
+    var size = +0;
     if (await fileExists(path)) {
         var files = await loadDirectory(path);
-        for(var i = 0; i < files.length; i++){
+        for (var i = 0; i < files.length; i++) {
             entry = files[i];
             if (entry.symbolicLink) {
                 size += kilobytes(0);
             } else if (entry.directory) {
-                size += directorySize(path + "/" + entry.name);
+                size += await directorySize(path + "/" + entry.name);
             } else {
-                var infos = fileStats(path + "/" + entry.name);
+                var infos = await fileStats(path + "/" + entry.name);
                 size += kilobytes(infos.size);
             }
         }
     } else {
         trace("NOENT", path);
+    }
+    if(isNaN(size)){
+        console.error("ERROR AT ", path);
+        throw new Error("Something went badly wrong!");
     }
     return size;
 }
@@ -348,11 +350,11 @@ function addUserDirectory(path) {
     scanDirectory(path).then(data => {
         // console.warn(data);
         data.forEach(name => {
-            addUserDirectory(path+'/'+name);
+            addUserDirectory(path + '/' + name);
         });
         nbDirectories--;
     });
-    
+
 }
 
 function isValidDirectory(path) {
@@ -373,10 +375,10 @@ async function checkForBackupDisk() {
             console.log("Backup store loaded.");
         } else {
             backupStore = {};
-            await mkdirs(storageDirectory, true );
+            await mkdirs(storageDirectory, true);
             await mkdirs(storageDirectory + "/Files", false);
             await mkdirs(storageDirectory + "/Folders", false);
-            await fileWrite(storageDirectory + "/store.json",JSON.stringify({}));
+            await fileWrite(storageDirectory + "/store.json", JSON.stringify({}));
         }
         console.log("BACKUP STORE => " + storageDirectory);
         return storageDirectory;
@@ -390,7 +392,7 @@ function loadDirectory(path) {
 }
 
 async function scanDirectory(path) {
-    if(path === BACKUP_DIR){
+    if (path === BACKUP_DIR) {
         trace("FCPBACKUP", path);
         return [];
     }
@@ -407,7 +409,7 @@ async function scanDirectory(path) {
             //console.log("Entry " + fullPath + " ignored.")
         } else if (isVideoFile(fullPath) && entry.file) {
             notice("VIDEO", fullPath);
-            addToIndex(entry.name, fullPath);
+            // addToIndex(entry.name, fullPath);
         } else if (fullPath.match(/\.fcpbundle$/)) {
             //  console.warn("Scanning libray...")
             await registerLibrary(fullPath);
@@ -432,6 +434,7 @@ async function scanDirectory(path) {
     return dirList;
 }
 
+/*
 async function searchBackupFiles(externalFiles) {
     const fileList = [];
     const klist = Object.keys(fileMap).filter((key) => externalFiles || fileMap[key].some((e) => e.library != null));
@@ -451,18 +454,24 @@ async function searchBackupFiles(externalFiles) {
     }
     return fileList;
 }
+*/
 
-async function backupFile(md5) {
-    const infos = fileMap[md5];
-    const ext = path.extname(infos[0].path);
-    const md5filename = md5 + ext.toLowerCase();
-    const md5dir =
-        storageDirectory + "/Files/" + md5[0] + "/" + md5.substring(0, 2);
+async function backupFile(md5, force) {
+    const md5filename = md5 + '.bin';
+    const md5dir = storageDirectory + "/Files/" + md5[0] + "/" + md5.substring(0, 2);
     const md5path = md5dir + "/" + md5filename;
 
-    await mkdirs(md5dir, true);
-    await copyFile(infos[0].path, md5path);
-    for(var i = 0; i < infos.length; i++){
+    if (force || !(await fileExists(md5path))) {
+        await mkdirs(md5dir, true);
+        await copyFile(infos[0].path, md5path);
+    }
+    return md5path;
+}
+
+async function backupIfNeeded(md5) {
+    const infos = fileMap[md5];
+    const md5path = await backupFile(md5, false);
+    for (var i = 0; i < infos.length; i++) {
         f = infos[i];
         const filename = storageDirectory + "/Folders" + f.path;
         const dirname = path.dirname(filename);
@@ -470,4 +479,5 @@ async function backupFile(md5) {
         await fslink(md5path, filename);
         console.log("HARD LINK " + filename + " => " + md5filename);
     }
+    infos.backuped = true;
 }

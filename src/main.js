@@ -254,7 +254,7 @@ function handlePList(path) {
                     key = t;
                 } else if (mode == 2) {
                     data[key] = t;
-                }
+                } 
                 mode = 0;
                 // console.log(JSON.stringify(data));
             };
@@ -264,9 +264,11 @@ function handlePList(path) {
                     mode = 1;
                 } else if (node.name == "string") mode = 2;
                 else if (node.name == "integer") mode = 2;
-                else if (node.name == "true") mode = 2;
-                else if (node.name == "false") mode = 2;
-                else {
+                else if (node.name == "true") {
+                    data[key] = true;
+                } else if (node.name == "false") {
+                    data[key] = false;
+                } else {
                     mode = 0;
                 }
             };

@@ -47,6 +47,8 @@ checkForBackupDisk().then( path => {
     // console.warn("BACKUP = " + path);
     if(path){
         jQuery("#backupContents").html("Backup will be done at "+ path);
+    } else {
+        jQuery("#backupContents").html("You must have a disk named <code><b>FCPSlave</b></code> in order to have your data backuped.");
     }
 })
 

@@ -24,13 +24,19 @@ function escapeHtml(text) {
     });
 }
 
+/**
+ * 
+ * @param {string} name the tag name
+ * @param {*} attrs the attributes as a map
+ * @returns 
+ */
 function tag(name, attrs) {
     var html = "<" + name;
     if (attrs) {
         Object.keys(attrs).forEach((k) => {
             html += " " + k;
             if (attrs[k]) {
-                html += "=" + escapeHtml(attrs[k]);
+                html += "=\"" + escapeHtml(attrs[k]) + "\"";
             }
         });
     }
@@ -87,10 +93,17 @@ function refreshDisplay(infos) {
             var lost = 0;
             lib.events.forEach((e) => {
                 mediaSize += e.size;
-                links += e.links;
+                links += e.links.length;
                 lost += e.lost.length;
             });
-            html += tag("li", { class: "list-group-item", id: "library-" + index });
+            
+            var duplicates = false;
+            for(var i = 0; i < index; i++){
+                if(infos.fcpxLibraries[i].libraryID === lib.libraryID){
+                    duplicates = true;
+                }
+            }
+            html += tag("li", { class: "list-group-item" + (duplicates ? " duplicateLib" : ""), id: "library-" + index });
             html += '<small><code>' + lib.libraryID + '</code></small><br>'
             html += "<b>" + escapeHtml(lib.name) + "</b>"
                 + ' <i class="bi bi-box-arrow-up-right" onClick="return shellOpen(' + jstr(lib.path) + ')"></i>'
@@ -123,7 +136,7 @@ function refreshDisplay(infos) {
             }
             html += "Media: <b>" + diskSize(mediaSize) + "</b>";
             if (links > 0) {
-                html += " (" + links + "  links";
+                html += " (+" + links + "  links";
                 html += lost > 0 ? ', <strong class="text-danger">' + lost + " lost</strong>" : "";
                 html += ")";
             }
@@ -132,6 +145,7 @@ function refreshDisplay(infos) {
             html += "</li>";
         });
         $("#libraryContents").html(html);
+        $("#lib-badge").text(fcpxLibraries.length);
 
         var txt = "";
         txt += "<table>";
@@ -185,61 +199,3 @@ jQuery(function () {
     });
     selectTab("library");
 });
-
-/*
-
-
-
-addUserDirectory(homedir + "/Movies");
-addUserDirectory("/Volumes/FinalCutPro");
-refresh();
-
-var filesBackuped = 0;
-
-function backupAllFiles() {
-    backupPromises = searchBackupFiles(true).map((md5) => {
-        console.log("Adding " + md5);
-        new Promise((resolve, reject) => {
-            currentBackup = fileMap[md5].name;
-            backupFile(md5);
-            filesBackuped++;
-            refresh();
-            resolve(md5);
-        });
-    });
-
-    Promise.all(backupPromises).then(() => {
-        console.log("Backup done. Program terminates.");
-    });
-}
-
-
-function wait(milliseconds) {
-    return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
-
-async function waitEndOfScan() {
-    var i = 0;
-    while (scannedDirectories < nbDirectories) {
-        while (i < Math.min(i + 100, promises.length)) {
-            promises[i].then(
-                (result) => {
-                    result.forEach((p) => addUserDirectory(p));
-                    process.stdout.write("\r" + scannedDirectories + "/" + nbDirectories + "...");
-                },
-                (err) => {
-                    console.warn(err.message);
-                }
-            );
-            i++;
-        }
-        await wait(500);
-        refresh();
-        console.log("check at " + new Date());
-    }
-    backupAllFiles();
-}
-
-// waitEndOfScan();
-
-*/
