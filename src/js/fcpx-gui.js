@@ -90,13 +90,12 @@ function refreshDisplay(infos) {
         infos.fcpxLibraries.forEach((lib, index) => {
             var mediaSize = 0;
             var links = 0;
-            var lost = 0;
+            var totalLost = 0;
             lib.events.forEach((e) => {
                 mediaSize += e.size;
                 links += e.links.length;
-                lost += e.lost.length;
+                totalLost += e.lost.length;
             });
-            
             html += tag("li", { class: "list-group-item" + (lib.duplicated ? " duplicateLib" : ""), id: "library-" + index });
             html += '<small><code>' + lib.libraryID + '</code></small><br>'
             html += "<b>" + escapeHtml(lib.name) + "</b>"
@@ -139,10 +138,20 @@ function refreshDisplay(infos) {
             }
             html += '<span class="' + className + '">';
             html += "Media: <b>" + diskSize(mediaSize) + "</b>";
-            if (links > 0) {
+            if (links > 0 || totalLost > 0) {
                 html += " (+" + links + "  links";
-                html += lost > 0 ? ', <strong class="text-danger">' + lost + " lost</strong>" : "";
+                // html += lost > 0 ? ', <strong class="text-danger">' + lost + " lost</strong>" : "";
+                html += totalLost > 0 ? ', <span class="text-danger">' + totalLost + " lost</span>" : '';
                 html += ")";
+            }
+            if(totalLost > 0){
+                for(var i = 0; i < lib.events.length; i++){
+                    for(var j = 0; j < lib.events[i].lost.length; j++){
+                        html += '<br>\n' 
+                                    + '<span class="text-danger">' + escapeHtml(lib.events[i].lost[j].path) + '</span>'
+                                    + ' <span class="text-secondary">(' + escapeHtml(lib.events[i].lost[j].name) + ", " + escapeHtml(lib.events[i].name) + ')</span>';
+                    }
+                }
             }
             html += "</span></small><br>";
             // html += JSON.stringify(lib);

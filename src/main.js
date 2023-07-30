@@ -29,7 +29,7 @@ function createWindow() {
  * 
  * @param {string} path the path to load
  */
-function handleDirectoryLoad(path) {
+function handleLoadDirectory(path) {
     return new Promise((resolve, reject) => {
         if (!fs.existsSync(path)) {
             warning("NOENT", path);
@@ -42,13 +42,17 @@ function handleDirectoryLoad(path) {
                 const files = [];
                 data.forEach(x => {
                     if (x.name.substring(0, 1) != '.' && (x.isSymbolicLink() || x.isFile() || x.isDirectory())) {
-                        files.push({
+                        const infos = {
                             path: path + '/' + x.name,
                             directory: x.isDirectory(),
                             file: x.isFile(),
                             symLink: x.isSymbolicLink(),
                             name: x.name,
-                        })
+                        };
+                        if(x.isSymbolicLink()){
+                            infos.realPath = fs.readlinkSync(infos.path);
+                        }
+                        files.push(infos);
                     }
                 });
                 resolve(files);
@@ -104,24 +108,26 @@ function handleFileSignature(path) {
         const buf = Buffer.alloc(BUFFER_SIZE);
         try {
             if (!fs.existsSync(path)) {
+                warning("NOENT", path);
                 resolve(null);
+            } else {
+                const path1 = fs.realpathSync(path);
+                const fd = fs.openSync(path1);
+                const infos = fs.fstatSync(fd);
+                const hash = crypto.createHash("md5");
+                fs.readSync(fd, buf, {
+                    length: Math.min(BUFFER_SIZE, infos.size),
+                    position: 0,
+                });
+                hash.update(Uint8Array.from(buf));
+                fs.readSync(fd, buf, {
+                    length: Math.min(BUFFER_SIZE, infos.size),
+                    position: Math.max(0, infos.size - BUFFER_SIZE),
+                });
+                hash.update(Uint8Array.from(buf));
+                fs.closeSync(fd);
+                resolve(hash.digest("hex"));
             }
-            const path1 = fs.realpathSync(path);
-            const fd = fs.openSync(path1);
-            const infos = fs.fstatSync(fd);
-            const hash = crypto.createHash("md5");
-            fs.readSync(fd, buf, {
-                length: Math.min(BUFFER_SIZE, infos.size),
-                position: 0,
-            });
-            hash.update(Uint8Array.from(buf));
-            fs.readSync(fd, buf, {
-                length: Math.min(BUFFER_SIZE, infos.size),
-                position: Math.max(0, infos.size - BUFFER_SIZE),
-            });
-            hash.update(Uint8Array.from(buf));
-            fs.closeSync(fd);
-            resolve(hash.digest("hex"));
         } catch (err) {
             warning(err.code, path);
             reject(err);
@@ -211,21 +217,34 @@ function handleRemoveFile(path) {
 }
 
 
-function handleCopyFile(src, dst) {
+
+function handleFileCopy(src, dst) {
     return new Promise((resolve, reject) => {
         if(!fs.existsSync(src)){
             resolve(false);
         }
+        
+        outputDir = path.dirname(dst);
+        if(!fs.existsSync(outputDir)){
+            // Create the directory if not exists...
+            throw new Error(outputDir + ": the directory MUST exists for file copy!")
+        }
+
         // Copy and rename to ensure no partial copy
-        fs.copyFileSync(src, dst + "~");
-        fs.renameSync(dst + "~", dst);
-        notice("COPIED", src + ' => ' + dst);
-        resolve(true);
+        fs.copyFile(src, dst + '~', err => {
+            if(err) throw err;
+            fs.renameSync(dst + '~', dst);
+            notice("COPIED", src + ' => ' + dst);
+            resolve(true);
+        });
     });
 }
 
 function handleFileLink(ref, newRef) {
     return new Promise((resolve, reject) => {
+        if(fs.existsSync(newRef)){
+            fs.unlinkSync(newRef);
+        }
         fs.link(ref, newRef, err => {
             if (err) throw err;
             notice("LINKED", ref + ' => ' + newRef);
@@ -316,7 +335,7 @@ function handlePList(path) {
 
 app.whenReady().then(() => {
     createWindow()
-    ipcMain.handle("dir:load", (event, path) => handleDirectoryLoad(path))
+    ipcMain.handle("dir:load", (event, path) => handleLoadDirectory(path))
     ipcMain.on('log:trace', (event, type, message) => trace(type, message));
     ipcMain.on('log:notice', (event, type, message) => notice(type, message));
     ipcMain.on('log:warning', (event, type, message) => warning(type, message));
@@ -328,7 +347,7 @@ app.whenReady().then(() => {
     ipcMain.handle("file:exists", (event, path) => handleFileExists(path));
     ipcMain.handle("file:read", (event, path) => handleFileRead(path));
     ipcMain.handle("file:plist", (event, path) => handlePList(path));
-    ipcMain.handle("file:copy", (event, src, dest) => handleCopyFile(src, dest));
+    ipcMain.handle("file:copy", (event, src, dest) => handleFileCopy(src, dest));
     ipcMain.handle("file:link", (event, ref, newRef) => handleFileLink(ref, newRef));
     ipcMain.handle("dir:mkdir", (event, path, recursive) => handleMakeDirectory(path, recursive));
     ipcMain.on("file:unlink", (event, path) => handleRemoveFile(path));
