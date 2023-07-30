@@ -8,7 +8,7 @@ const { Dirent } = require('fs');
 const sax = require("sax");
 var win;
 
-var verbose = 2;
+var verbose = 1;
 
 function createWindow() {
     win = new BrowserWindow({
@@ -181,10 +181,14 @@ function handleFileWrite(path, contents) {
 
 function handleMakeDirectory(path, recursive) {
     return new Promise((resolve, reject) => {
-        fs.mkdir(path, { "recursive": recursive }, (err, data) => {
-            if (err) reject(err);
-            resolve(data);
-        });
+        if(fs.existsSync(path)){
+            resolve(path);
+        } else {
+            fs.mkdir(path, { "recursive": recursive }, (err, data) => {
+                if (err) reject(err);
+                resolve(data);
+            });
+        }
     });
 }
 
@@ -209,13 +213,14 @@ function handleRemoveFile(path) {
 
 function handleCopyFile(src, dst) {
     return new Promise((resolve, reject) => {
+        if(!fs.existsSync(src)){
+            resolve(false);
+        }
         // Copy and rename to ensure no partial copy
-        fs.copyFile(src, dst + "~", err => {
-            if (err) throw err;
-            fs.renameSync(dst + "~", dst);
-            notice("COPIED", src + ' => ' + dst);
-            resolve(true);
-        })
+        fs.copyFileSync(src, dst + "~");
+        fs.renameSync(dst + "~", dst);
+        notice("COPIED", src + ' => ' + dst);
+        resolve(true);
     });
 }
 

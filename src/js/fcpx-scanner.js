@@ -74,7 +74,7 @@ async function fileWrite(path, contents) {
 
 
 async function fslink(current, newOne) {
-    return window.myAPI.fileWrite(current, newOne);
+    return window.myAPI.fslink(current, newOne);
 }
 
 /**
@@ -104,10 +104,15 @@ async function scanEventFiles(library, event, path) {
                 var realPath = path + "/" + e.name;
                 trace("SYMLINK", path + "/" + e.name + " => " + realPath);
                 var infos = await registerFile(realPath);
-                event.links.push({
-                    md5: infos.md5,
-                    path: path + "/" + e.name
-                });
+                if(!infos){
+                    event.lost.push(e.name);
+                } else {
+                    event.links.push({
+                        md5: infos.md5,
+                        path: path + "/" + e.name,
+                        resolvedPath: realPath
+                    });
+                }
             } catch (err) {
                 if (err.code === "ENOENT") {
                     event.lost.push(e.name);
@@ -176,6 +181,41 @@ function reloadLibrary(index) {
     fcpxLibraries[index] = loadLibrary(fcpxLibraries[index].path);
 }
 
+async function backupLibrary(library) {
+    const root = storageDirectory + '/Libraries';
+    if(library.duplicated){
+        console.warn("Can not backup: duplicate library");
+        return false;
+    }
+    library.backup = 1
+    await mkdirs(root + library.path, true);
+    await mkdirs(root + library.path + '/Motion Templates');
+    await mkdirs(root + library.path + '/__Temp');
+    await copyFile(library.path + '/CurrentVersion.fcpevent', root + library.path + '/CurrentVersion.fcpevent')
+    await copyFile(library.path + '/Settings.plist', root + library.path + '/Settings.plist')
+    for(var i = 0; i < library.events.length; i++){
+        const event = library.events[i];
+        const eventDir = root + library.path + '/' + event.name;
+        await mkdirs(eventDir, false);
+        await mkdirs(eventDir + '/Original Media', false);
+        await mkdirs(eventDir + '/Transcoded Media', false);
+        for(var j = 0; j < event.projects.length; j++){
+            await mkdirs(eventDir + '/'  + event.projects[j], false);
+            await copyFile(library.path + '/' + event.name + '/' + event.projects[j] + '/CurrentVersion.fcpevent', eventDir + '/'  + event.projects[j] + '/CurrentVersion.fcpevent');
+        }
+        for(var j = 0; j < event.links.length; j++){
+            const md5path = await backupIfNeeded(event.links[j].md5);
+            await fslink(md5path, root + '/' + event.links[j].path);
+        }
+        for(var j = 0; j < event.files.length; j++){
+            const md5path = await backupIfNeeded(event.files[j].md5);
+            await fslink(md5path, root + '/' + event.files[j].path);
+        }
+    }
+    library.backup = 2;
+    return true;
+}
+
 /**
  * Load the library and return the characteristics. Note we must first ensure the
  * library exists and is a valid one.
@@ -193,6 +233,7 @@ async function loadLibrary(path) {
     library.mediaSize = +0;
     library.links = +0;
     library.lost = +0;
+    library.backup = 0;
 
     var eventDir = await loadDirectory(path);
     for (var i = 0; i < eventDir.length; i++) {
@@ -230,7 +271,15 @@ async function loadLibrary(path) {
     return library;
 }
 
-
+function addToLibraries(library){
+    library.duplicated = false;
+    for(var i=0; i < fcpxLibraries.length; i++){
+        if(library.libraryID === fcpxLibraries[i].libraryID){
+            library.duplicated = true;
+        }
+    }
+    fcpxLibraries.push(library);
+}
 
 async function registerLibrary(path) {
     const stats = await fileStats(path);
@@ -242,7 +291,8 @@ async function registerLibrary(path) {
             fcpxBackups.push(path);
         } else {
             var library = await loadLibrary(path);
-            fcpxLibraries.push(library);
+            addToLibraries(library);
+            backupLibrary(library);
             console.log("Registered library " + library.libraryID);
         }
     } else {
@@ -272,6 +322,7 @@ async function registerFile(path) {
     currentScanned = path;
     // if(await fileExists(path)){
     const md5 = await fileSignature(path);
+    if(!md5) return null;
     var entry = fileMap[md5];
     const infos = await fileStats(path);
     if (entry == null) {
@@ -334,7 +385,7 @@ function refresh() {
         currentScanned: currentScanned,
         scanErrors: scanErrors,
         "totalDirectories": totalDirectories,
-        "nbDirectories": nbDirectories,
+        'nbDirectories': nbDirectories,
         scannedDirectories: scannedDirectories,
         rootDisk: rootDisk,
         filesInMap: Object.keys(fileMap).length,
@@ -354,7 +405,6 @@ function addUserDirectory(path) {
         });
         nbDirectories--;
     });
-
 }
 
 function isValidDirectory(path) {
@@ -377,6 +427,7 @@ async function checkForBackupDisk() {
             backupStore = {};
             await mkdirs(storageDirectory, true);
             await mkdirs(storageDirectory + "/Files", false);
+            await mkdirs(storageDirectory + "/Libraries", false);
             await mkdirs(storageDirectory + "/Folders", false);
             await fileWrite(storageDirectory + "/store.json", JSON.stringify({}));
         }
@@ -458,26 +509,35 @@ async function searchBackupFiles(externalFiles) {
 
 async function backupFile(md5, force) {
     const md5filename = md5 + '.bin';
-    const md5dir = storageDirectory + "/Files/" + md5[0] + "/" + md5.substring(0, 2);
+    const md5dir = storageDirectory + "/Files/" + md5.substring(0, 1) + "/" + md5.substring(0, 2);
     const md5path = md5dir + "/" + md5filename;
 
-    if (force || !(await fileExists(md5path))) {
+    const destExists = await fileExists(md5path);
+    if (force || !destExists) {
+        const infos = fileMap[md5];
         await mkdirs(md5dir, true);
-        await copyFile(infos[0].path, md5path);
+        await copyFile(infos.entries[0].path, md5path);
     }
     return md5path;
 }
 
 async function backupIfNeeded(md5) {
+    if(!md5){
+        console.error("NO MD5", md5);
+    }
     const infos = fileMap[md5];
+    if(!infos){
+        console.error("NO INFOS FOR " + md5, md5);
+    }
     const md5path = await backupFile(md5, false);
     for (var i = 0; i < infos.length; i++) {
-        f = infos[i];
-        const filename = storageDirectory + "/Folders" + f.path;
+        const path = infos.entries[i];
+        const filename = storageDirectory + "/Folders" + path;
         const dirname = path.dirname(filename);
         await mkdirs(dirname, true);
         await fslink(md5path, filename);
         console.log("HARD LINK " + filename + " => " + md5filename);
     }
     infos.backuped = true;
+    return md5path;
 }

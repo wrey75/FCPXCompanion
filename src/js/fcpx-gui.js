@@ -97,13 +97,7 @@ function refreshDisplay(infos) {
                 lost += e.lost.length;
             });
             
-            var duplicates = false;
-            for(var i = 0; i < index; i++){
-                if(infos.fcpxLibraries[i].libraryID === lib.libraryID){
-                    duplicates = true;
-                }
-            }
-            html += tag("li", { class: "list-group-item" + (duplicates ? " duplicateLib" : ""), id: "library-" + index });
+            html += tag("li", { class: "list-group-item" + (lib.duplicated ? " duplicateLib" : ""), id: "library-" + index });
             html += '<small><code>' + lib.libraryID + '</code></small><br>'
             html += "<b>" + escapeHtml(lib.name) + "</b>"
                 + ' <i class="bi bi-box-arrow-up-right" onClick="return shellOpen(' + jstr(lib.path) + ')"></i>'
@@ -134,13 +128,23 @@ function refreshDisplay(infos) {
             } else {
                 html += "No rendered media, ";
             }
+            if(lib.lost.length > 0){
+                className = 'text-danger';
+            } else if(lib.backup == 2){
+                className = 'text-success';
+            } else if(lib.backup == 0){
+                className = 'text-muted';
+            } else {
+                className = '';
+            }
+            html += '<span class="' + className + '">';
             html += "Media: <b>" + diskSize(mediaSize) + "</b>";
             if (links > 0) {
                 html += " (+" + links + "  links";
                 html += lost > 0 ? ', <strong class="text-danger">' + lost + " lost</strong>" : "";
                 html += ")";
             }
-            html += "</small><br>";
+            html += "</span></small><br>";
             // html += JSON.stringify(lib);
             html += "</li>";
         });
