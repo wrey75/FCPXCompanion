@@ -240,7 +240,7 @@ function handleFileCopy(src, dst) {
     });
 }
 
-function handleFileLink(ref, newRef) {
+function handleFsLink(ref, newRef) {
     return new Promise((resolve, reject) => {
         if(fs.existsSync(newRef)){
             fs.unlinkSync(newRef);
@@ -348,7 +348,7 @@ app.whenReady().then(() => {
     ipcMain.handle("file:read", (event, path) => handleFileRead(path));
     ipcMain.handle("file:plist", (event, path) => handlePList(path));
     ipcMain.handle("file:copy", (event, src, dest) => handleFileCopy(src, dest));
-    ipcMain.handle("file:link", (event, ref, newRef) => handleFileLink(ref, newRef));
+    ipcMain.handle("file:link", (event, ref, newRef) => handleFsLink(ref, newRef));
     ipcMain.handle("dir:mkdir", (event, path, recursive) => handleMakeDirectory(path, recursive));
     ipcMain.on("file:unlink", (event, path) => handleRemoveFile(path));
     ipcMain.on("dir:rmdir", (event, path) => handleRemoveDirectory(path));

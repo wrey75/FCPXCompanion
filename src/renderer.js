@@ -34,21 +34,13 @@ console.log(
   '👋 This message is being logged by "renderer.js", included via webpack'
 );
 
-btn = document.getElementById("testBtn");
-
-btn.addEventListener("click", () => {
-  const fileList = window.myAPI.loadDirectory("/");
-  console.log(fileList);
-});
-
-
 // console.log(window.myAPI.homedir());
 checkForBackupDisk().then( path => {
     // console.warn("BACKUP = " + path);
     if(path){
         jQuery("#backupContents").html("Backup is be done at "+ path);
     } else {
-        jQuery("#backupContents").html("You must have a disk named <code><b>FCPSlave</b></code> in order to have your data backuped.");
+        jQuery("#backupContents").html("You must have a disk named <b>FCPSlave</b> in order to have your data backuped.");
     }
 })
 

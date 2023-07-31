@@ -16,7 +16,7 @@
     <div class="container">
       <h1>FCPX Companion</h1>
 
-      <div class="progress" id="scanProgress">
+      <div class="progress" id="scanProgress" style="display: none">
         <div
           class="progress-bar"
           role="progressbar"
@@ -48,7 +48,7 @@
             <a id="libraryTab" class="nav-link active" aria-current="page" href="#">Librairies (<span id="lib-badge" >0</span>)</a>
           </li>
           <li class="nav-item">
-            <a id="backupTab" class="nav-link" href="#">Backup</a>
+            <a id="backupTab" class="nav-link" href="#">Backups</a>
           </li>
           <li class="nav-item">
             <a id="informationTab" class="nav-link" href="#">Informations</a>
@@ -56,6 +56,7 @@
         </ul>
 
         <ul id="libraryContents" class="list-group" style="display: none">
+
           <!-- ------------- -->
           <!-- THE LIBRARIES -->
           <!-- ------------- -->
@@ -64,18 +65,20 @@
           </li>
         </ul>
 
-        <div id="backupContents" style="display: none">
-          <p>
+        <ul id="backupContents" class="list-group" style="display: none">
+            <li class="list-group-item disabled">
             To backup your FinalCut libraries, you must have a disk named
             "FCPSlave". Then restart the software to start backup.
-          </p>
-        </div>
+            </li>
+        </ul>
 
-        <div id="informationContents" style="display: none"></div>
+        <div id="informationContents" style="display: none">
+            <div id="informationData"></div>
+            <div id="debug" style="background: red; color: white">--</div>
+        </div>
       </div>
     </div>
-    <button id="testBtn">TEST</button>
-    <div id="debug" style="background: red; color: white">--</div>
+   
     <script src="./js/fcpx-gui.js"></script>
     <script src="./js/fcpx-scanner.js"></script>
     <script src="./renderer.js"></script>

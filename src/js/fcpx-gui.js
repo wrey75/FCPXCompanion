@@ -53,30 +53,33 @@ function jstr(v){
 var backupPromises = [];
 
 function refreshDisplay(infos) {
-    var textToDisplay = "All directories scanned.";
-    jQuery("#debug").html("<pre>" + JSON.stringify(infos, null, 2) +"</pre>");
-    if (infos.nbDirectories > 0) {
-        var path = "";
-        var parts = infos.currentScanned.split("/");
-        if (parts.length > 2) {
-            path = parts[0];
-            var i = 1;
-            while (i < parts.length - 1 && (path.length + + parts[i].length + parts[parts.length - 1].length) < 45) {
-                path = path + "/" + parts[i++];
-            }
-            if (i < parts.length - 1) {
-                path = path + "/...";
-            }
-            path = path + "/" + parts[parts.length - 1];
-        } else {
-            path = infos.currentScanned;
-        }
-        textToDisplay = "Scanning " + path;
-    } else if (infos.storageDirectory && infos.filesBackuped < infos.backupPromises.length) {
-        textToDisplay = "Backuping " + infos.currentBackup;
-    } else {
+    //var textToDisplay = "All directories scanned.";
+    // jQuery("#debug").html("<pre>" + JSON.stringify(infos, null, 2) +"</pre>");
+    if(infos.done){
         document.getElementById("spinner").style.display = "none";
     }
+    // if (infos.nbDirectories > 0) {
+    //     var path = "";
+    //     var parts = infos.currentScanned.split("/");
+    //     if (parts.length > 2) {
+    //         path = parts[0];
+    //         var i = 1;
+    //         while (i < parts.length - 1 && (path.length + + parts[i].length + parts[parts.length - 1].length) < 45) {
+    //             path = path + "/" + parts[i++];
+    //         }
+    //         if (i < parts.length - 1) {
+    //             path = path + "/...";
+    //         }
+    //         path = path + "/" + parts[parts.length - 1];
+    //     } else {
+    //         path = infos.currentScanned;
+    //     }
+    //     textToDisplay = "Scanning " + path;
+    // } else if (infos.storageDirectory && infos.filesBackuped < infos.backupPromises.length) {
+    //     textToDisplay = "Backuping " + infos.currentBackup;
+    // } else {
+    //     document.getElementById("spinner").style.display = "none";
+    // }
     var size = Math.floor((infos.scannedDirectories * 100.0) / infos.totalDirectories);
     if (infos.storageDirectory) {
         size = size / 2 + Math.floor(((filesBackuped + 1) * 50.0) / (infos.backupPromises.length + 1));
@@ -84,18 +87,13 @@ function refreshDisplay(infos) {
     const text = "width: " + size + "%";
     const domScan = document.getElementById("scanProgress");
     domScan.getElementsByTagName("div")[0].style = text;
-    document.getElementById("scanText").innerText = textToDisplay;
+    document.getElementById("scanText").innerText = infos.message;
     if (fcpxLibraries) {
         var html = "";
-        infos.fcpxLibraries.forEach((lib, index) => {
-            var mediaSize = 0;
-            var links = 0;
-            var totalLost = 0;
-            lib.events.forEach((e) => {
-                mediaSize += e.size;
-                links += e.links.length;
-                totalLost += e.lost.length;
-            });
+        infos.fcpxLibraries.forEach((lib,index) => {    
+            const mediaSize = lib.totals.media + lib.totals.linkSize;
+            const links = lib.totals.links;
+            const totalLost = lib.totals.lost;
             html += tag("li", { class: "list-group-item" + (lib.duplicated ? " duplicateLib" : ""), id: "library-" + index });
             html += '<small><code>' + lib.libraryID + '</code></small><br>'
             html += "<b>" + escapeHtml(lib.name) + "</b>"
@@ -137,29 +135,35 @@ function refreshDisplay(infos) {
                 className = '';
             }
             html += '<span class="' + className + '">';
-            html += "Media: <b>" + diskSize(mediaSize) + "</b>";
+            html += "Media: <b>" + diskSize(mediaSize) + "</b></span>";
             if (links > 0 || totalLost > 0) {
-                html += " (+" + links + "  links";
+                html += " (includes " + links + "  links";
                 // html += lost > 0 ? ', <strong class="text-danger">' + lost + " lost</strong>" : "";
-                html += totalLost > 0 ? ', <span class="text-danger">' + totalLost + " lost</span>" : '';
+                html += totalLost > 0 ? ' <span class="text-danger">and ' + totalLost + " lost</span>" : '';
                 html += ")";
             }
-            if(totalLost > 0){
+            html += "</span></small>";
+            if(totalLost > 0 && !lib.duplicated){
                 for(var i = 0; i < lib.events.length; i++){
-                    for(var j = 0; j < lib.events[i].lost.length; j++){
-                        html += '<br>\n' 
-                                    + '<span class="text-danger">' + escapeHtml(lib.events[i].lost[j].path) + '</span>'
-                                    + ' <span class="text-secondary">(' + escapeHtml(lib.events[i].lost[j].name) + ", " + escapeHtml(lib.events[i].name) + ')</span>';
+                    if(lib.events[i].lost.length > 0){
+                        html += '<p>\n' + escapeHtml(lib.events[i].name) + ':<small>';
+                        for(var j = 0; j < lib.events[i].lost.length; j++){
+                            html += '<br>\n&nbsp;&nbsp;' 
+                                        + ' <span class="text-secondary">' + escapeHtml(lib.events[i].lost[j].name) + '</span>'
+                                        + ' <small>(<span class="text-danger">' + escapeHtml(lib.events[i].lost[j].path) + '</span>)</small>';
+                        }
+                        html += '</small></p>';
                     }
                 }
             }
-            html += "</span></small><br>";
+            
             // html += JSON.stringify(lib);
             html += "</li>";
         });
         $("#libraryContents").html(html);
         $("#lib-badge").text(fcpxLibraries.length);
 
+        // Informations
         var txt = "";
         txt += "<table>";
         txt += "<tr><td>Scanned directories:</td><td>" + infos.scannedDirectories + "</td></tr>";
@@ -171,7 +175,34 @@ function refreshDisplay(infos) {
             txt += "<tr><td>Files to backup:</td><td>" + backupPromises.length + "</td></tr>";
         }
         txt += "</table>";
-        jQuery("#informationContents").html(txt);
+        jQuery("#informationData").html(txt);
+
+        // List of backups
+        if(infos.backupStore){
+            var html = '';
+            var array = [... Object.values(infos.backupStore)];
+            array.sort((a,b) => a.path.localeCompare(b.path));
+            array.forEach( (bck,index) => {
+                html += tag("li", { class: "list-group-item", id: "bck-" + index });
+                html += '<small><code>' + bck.id + '</code></small><br>'
+                html += "<small>" + escapeHtml(bck.path) + "</small><br>"
+                html += "<small>First scan: " + new Date(bck.first).toLocaleDateString();
+                if(bck.last){
+                    html += ", Last seen: " + new Date(bck.last).toLocaleDateString();
+                }
+                if(bck.updated){
+                    html += ", Last backup: " + new Date(bck.updated).toLocaleDateString();
+                }
+                html += '</small><br>';
+                if(bck.lost > 0){
+                    html += '<span class="text-danger"><strong>Missing ' + bck.lost + ' files</strong></span><br>';
+                }
+                //html += JSON.stringify(bck);
+                html += '</li>'
+            });
+            txt += "</table>";
+            jQuery("#backupContents").html(html);
+        }
     }
 }
 
