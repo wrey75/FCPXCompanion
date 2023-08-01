@@ -1,58 +1,27 @@
 {
-  "name": "fcpx-companion",
-  "version": "0.0.1",
-  "description": "The perfect FCPX companion",
-  "main": "main.js",
+  "name": "fcpxcompanion",
+  "productName": "fcpxcompanion",
+  "version": "0.90.0",
+  "description": "FCPX Companion",
+  "main": "src/main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "electron-forge start",
-    "package": "electron-forge package",
-    "make": "electron-forge make"
+    "start": "electron ."
   },
-  "author": "William Rey",
+  "keywords": [
+    "FCPX"
+  ],
+  "author": {
+    "name": "William Rey",
+    "email": "wrey75@gmail.com"
+  },
   "license": "MIT",
   "devDependencies": {
-    "@electron-forge/cli": "^6.0.0-beta.67",
-    "@electron-forge/maker-deb": "^6.0.0-beta.67",
-    "@electron-forge/maker-rpm": "^6.0.0-beta.67",
-    "@electron-forge/maker-squirrel": "^6.0.0-beta.67",
-    "@electron-forge/maker-zip": "^6.0.0-beta.67",
-    "electron": "^21.1.0"
+    "electron": "^23.2.0"
   },
   "dependencies": {
-    "bootstrap": "^5.2.2",
-    "bootstrap-icons": "^1.9.1",
-    "electron-squirrel-startup": "^1.0.0",
+    "bootstrap": "^5.2.3",
+    "bootstrap-icons": "^1.10.4",
+    "jquery": "^3.6.1",
     "sax": "^1.2.4"
-  },
-  "resolutions": {
-    "nan": "2.16.0"
-  },
-  "config": {
-    "forge": {
-      "packagerConfig": {},
-      "makers": [
-        {
-          "name": "@electron-forge/maker-squirrel",
-          "config": {
-            "name": "fcpx_companion"
-          }
-        },
-        {
-          "name": "@electron-forge/maker-zip",
-          "platforms": [
-            "darwin"
-          ]
-        },
-        {
-          "name": "@electron-forge/maker-deb",
-          "config": {}
-        },
-        {
-          "name": "@electron-forge/maker-rpm",
-          "config": {}
-        }
-      ]
-    }
   }
 }

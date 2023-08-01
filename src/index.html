@@ -1,71 +1,86 @@
 <!DOCTYPE html>
 <html>
-
-<head>
-    <meta charset="UTF-8">
-    <title>Hello World!</title>
-    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';" />
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-Zenh87qX5JnK2Jl0vWa8Ck2rdkQ2Bzep5IDxbcnCeuOxjzrPF/et3URy9Bv1WTRi" crossorigin="anonymous">
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.9.1/font/bootstrap-icons.css">
-</head>
-
-<body>
+  <head>
+    <script src="./js/jquery.js"></script>
+    <link rel="stylesheet" href="./css/bootstrap.css" />
+    <link
+      rel="stylesheet"
+      href="../node_modules/bootstrap-icons/font/bootstrap-icons.css"
+    />
+    <link rel="stylesheet" href="./index.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FCPX Companion</title>
+  </head>
+  <body>
     <div class="container">
-        <h1>FCPX Compagnion</h1>
-       
-        <div class="progress" id="scanProgress">
-            <div class="progress-bar" role="progressbar" aria-label="Scanning files" style="width: 50%"
-                aria-valuenow="75" aria-valuemin="0" aria-valuemax="100"></div>
-        </div>
-        <table>
-            <tr>
-                <td width="80" height="80">
-                    <div id="spinner" class="spinner-border" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                </td>
-                <td>
-                    <p><span id="scanText">Scanning...</span></p>
-                </td>
-            </tr>
-        </table>
-        
+      <h1>FCPX Companion</h1>
+
+      <div class="progress" id="scanProgress" style="display: none">
+        <div
+          class="progress-bar"
+          role="progressbar"
+          aria-label="Scanning files"
+          style="width: 50%"
+          aria-valuenow="75"
+          aria-valuemin="0"
+          aria-valuemax="100"
+        ></div>
+      </div>
+
+      <table>
+        <tr>
+          <td width="80" height="80">
+            <div id="spinner" class="spinner-border" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </td>
+          <td>
+            <p><span id="scanText">Scanning...</span></p>
+          </td>
+        </tr>
+      </table>
+
+      <div class="row">
         <!-- THE MAIN PARTS AS TABS -->
         <ul id="tabs" class="nav nav-tabs">
-            <li class="nav-item">
-                <a id="libraryTab" class="nav-link active" aria-current="page" href="#">Librairies</a>
-            </li>
-            <li class="nav-item">
-                <a id="backupTab"  class="nav-link" href="#">Backup</a>
-            </li>
-            <li class="nav-item">
-                <a id="informationTab" class="nav-link" href="#">Informations</a>
+          <li class="nav-item">
+            <a id="libraryTab" class="nav-link active" aria-current="page" href="#">Librairies (<span id="lib-badge" >0</span>)</a>
+          </li>
+          <li class="nav-item">
+            <a id="backupTab" class="nav-link" href="#">Backups</a>
+          </li>
+          <li class="nav-item">
+            <a id="informationTab" class="nav-link" href="#">Informations</a>
+          </li>
+        </ul>
+
+        <ul id="libraryContents" class="list-group" style="display: none">
+
+          <!-- ------------- -->
+          <!-- THE LIBRARIES -->
+          <!-- ------------- -->
+          <li class="list-group-item disabled">
+            Aucune librairie découverte...
+          </li>
+        </ul>
+
+        <ul id="backupContents" class="list-group" style="display: none">
+            <li class="list-group-item disabled">
+            To backup your FinalCut libraries, you must have a disk named
+            "FCPSlave". Then restart the software to start backup.
             </li>
         </ul>
 
-        <ul id="libraryContents" class="list-group" style="display: none;">
-            <!-- ------------- -->
-            <!-- THE LIBRARIES -->
-            <!-- ------------- -->
-            <li class="list-group-item disabled">Aucune librairie découverte...</li>
-        </ul>
-        
-        <div id="backupContents" style="display: none;">
-            <p>
-                To backup your FinalCut libraries, you must have a disk named "FCPSlave". Then
-                restart the software to start backup.
-            </p>
+        <div id="informationContents" style="display: none">
+            <div id="informationData"></div>
+            <div id="debug" style="background: red; color: white">--</div>
         </div>
-
-        <div id="informationContents" style="display: none;">
-        </div>
+      </div>
     </div>
-    <script>if (typeof module === 'object') {window.module = module; module = undefined;}</script>
-    <script src="./fcpx-scanner.js"></script>
-    <script src="./lib/jquery.js"></script>
-    <script src="./fcpx-gui.js"></script>
-    <script>if (window.module) module = window.module;</script>
-</body>
-
+   
+    <script src="./js/fcpx-gui.js"></script>
+    <script src="./js/fcpx-scanner.js"></script>
+    <script src="./renderer.js"></script>
+  </body>
 </html>
