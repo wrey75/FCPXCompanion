@@ -92,7 +92,20 @@ it the correct library because there is no possibility to check what is thhe cor
 
 You have to manually delete the copy if the two libraries are exact copies or to merge the two libraries to have only one.
 
-You can have duplicate libraries if you have made backups manually. But in this case, there is no way to know the 
+You can have duplicate libraries if you have made backups manually. But in this case, there is no way to know the original
+file. This can happen if you copy a library for any reason. In this case, the ID of the library is duplicated and the 
+library is flagged as "duplicate" in the software.
+
+### Moved libraries
+
+If you rename a disk (not a good idea), then the software considers the library has moved. But note there is nothing to 
+manage the renaming of the disk then the library is not considered as a duplicate but is duplicated on the FCPBackup disk!
+This is not a big deal because the files are not duplicated (except the basic ones linked to projects) then no disk space
+is lost.
+
+But it is better to remove manually the files duplicated in both `Folders` and `Libraries`.
+
+
 
 
 
