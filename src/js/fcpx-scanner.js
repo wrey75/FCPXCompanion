@@ -257,8 +257,8 @@ async function backupLibrary(library) {
             await fslink(md5path, root + event.files[j].path);
         }
     }
-    backupStore[library.libraryID].updated = new Date().toISOString();
-    backupStore[library.libraryID].lost = library.totals.lost;
+    backupStore.libs[library.libraryID].updated = new Date().toISOString();
+    backupStore.libs[library.libraryID].lost = library.totals.lost;
     await fileWrite(storageDirectory + "/store.json", JSON.stringify(backupStore));
     library.backup = 2;
     return true;
@@ -330,14 +330,14 @@ function addToLibraries(library){
     }
     fcpxLibraries.push(library);
     if(backupStore != null && !library.duplicated){
-        if(backupStore[library.libraryID] && backupStore[library.libraryID].path != library.path){
+        if(backupStore.libs[library.libraryID] && backupStore.libs[library.libraryID].path != library.path){
             // We found the same library with a different path...
             library.duplicated = true;
-        } else if(backupStore[library.libraryID]) {
-            backupStore[library.libraryID].last = new Date().toISOString();
+        } else if(backupStore.libs[library.libraryID]) {
+            backupStore.libs[library.libraryID].last = new Date().toISOString();
         } else {
             const now = new Date().toISOString();
-            backupStore[library.libraryID] = {
+            backupStore.libs[library.libraryID] = {
                 last: now,
                 first: now,
                 id: library.libraryID,
@@ -468,7 +468,7 @@ function refresh() {
         extraFiles: extraFiles,
         fcpxLibraries: fcpxLibraries,
         fcpxBackups: fcpxBackups,
-        'backupStore': backupStore,
+        'backupStore': backupStore.libs,
         done: false
     };
     if( scannedDirectories < totalDirectories){
@@ -519,16 +519,28 @@ async function checkForBackupDisk() {
             const data = await fileRead(storageDirectory + "/store.json");
             notice("JSON", data);
             backupStore = JSON.parse(data);
+            if(!backupStore.version){
+                const old = backupStore;
+                console.log("Upgrade backup store to version 1...")
+                backupStore = {
+                    version: 1,
+                    libs: old,
+                };
+            }
             console.log("Backup store loaded.");
         } else {
-            backupStore = {};
+            backupStore = {
+                version: 1,
+                libs: {},
+            };
             await mkdirs(storageDirectory, true);
             await mkdirs(storageDirectory + "/Files", false);
             await mkdirs(storageDirectory + "/Libraries", false);
             await mkdirs(storageDirectory + "/Folders", false);
-            await fileWrite(storageDirectory + "/store.json", JSON.stringify(backupStore));
+            await fileWrite(storageDirectory + '/.metadata_never_index', '');
         }
-        console.log("BACKUP STORE => " + storageDirectory);
+        console.log("SAVE BACKUP STORE.", backupStore);
+        await fileWrite(storageDirectory + "/store.json", JSON.stringify(backupStore));
         return storageDirectory;
     }
     return null;

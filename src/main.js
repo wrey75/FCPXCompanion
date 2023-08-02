@@ -239,8 +239,8 @@ function handleFileCopy(src, dst) {
             const filesize = stat.size;
             let bytesCopied = 0;
 
-            const readStream = fs.createReadStream(src);
-            const writeStream = fs.createWriteStream(dst + '~');
+            const readStream = fs.createReadStream(src,{ highWaterMark: 32 * 1024 * 1024 });
+            const writeStream = fs.createWriteStream(dst + '~', { highWaterMark: 32 * 1024 * 1024 });
 
             readStream.on('data', function (buffer) {
                 bytesCopied += buffer.length;
