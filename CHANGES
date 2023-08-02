@@ -1,0 +1,16 @@
+CHANGES
+=======
+
+Beta release
+------------
+* Backup in the `FCPBackup` disk.
+* Control of duplicate libraries
+* Use of `store.json` for storage of library information.
+* Saves the linked files in `Folders` directory of the `BackupStore`. 
+* Display of lost links.
+
+v0.20.0
+-------
+* Added the version in the title of the window
+* Added a progress when copying files
+

@@ -19,9 +19,12 @@ function createWindow() {
         }
     })
 
-    win.loadFile('src/index.html')
-    // Open the DevTools.
     win.webContents.openDevTools();
+    win.loadFile('src/index.html').then(() => {
+        const title = app.getName() + ' v' + app.getVersion();
+        console.log("TITLE WILL BE " + title);
+        win.setTitle(title);
+    })
 }
 
 /**
@@ -49,7 +52,7 @@ function handleLoadDirectory(path) {
                             symLink: x.isSymbolicLink(),
                             name: x.name,
                         };
-                        if(x.isSymbolicLink()){
+                        if (x.isSymbolicLink()) {
                             infos.realPath = fs.readlinkSync(infos.path);
                         }
                         files.push(infos);
@@ -187,7 +190,7 @@ function handleFileWrite(path, contents) {
 
 function handleMakeDirectory(path, recursive) {
     return new Promise((resolve, reject) => {
-        if(fs.existsSync(path)){
+        if (fs.existsSync(path)) {
             resolve(path);
         } else {
             fs.mkdir(path, { "recursive": recursive }, (err, data) => {
@@ -220,29 +223,52 @@ function handleRemoveFile(path) {
 
 function handleFileCopy(src, dst) {
     return new Promise((resolve, reject) => {
-        if(!fs.existsSync(src)){
+        if (!fs.existsSync(src)) {
             resolve(false);
         }
-        
+
         outputDir = path.dirname(dst);
-        if(!fs.existsSync(outputDir)){
+        if (!fs.existsSync(outputDir)) {
             // Create the directory if not exists...
             throw new Error(outputDir + ": the directory MUST exists for file copy!")
         }
 
         // Copy and rename to ensure no partial copy
-        fs.copyFile(src, dst + '~', err => {
-            if(err) throw err;
-            fs.renameSync(dst + '~', dst);
-            notice("COPIED", src + ' => ' + dst);
-            resolve(true);
-        });
+        fs.stat(src, function (err, stat) {
+            if (err) throw err;
+            const filesize = stat.size;
+            let bytesCopied = 0;
+
+            const readStream = fs.createReadStream(src);
+            const writeStream = fs.createWriteStream(dst + '~');
+
+            readStream.on('data', function (buffer) {
+                bytesCopied += buffer.length;
+                const percentage = ((bytesCopied / filesize) * 100).toFixed(2);
+                const text = "Copying " + src.replace(/.*\//, '') + ' (' + percentage + '%)...';
+                win.webContents.send('update-copy-progress', text);
+                // console.log(percentage+'%') // run once with this and later with this line commented
+            })
+            writeStream.on('close', function () {
+                fs.renameSync(dst + '~', dst);
+                notice("COPIED", src + ' => ' + dst);
+                resolve(true);
+            })
+            readStream.pipe(writeStream);
+        })
+
+        // fs.copyFile(src, dst + '~', err => {
+        //     if(err) throw err;
+        //     fs.renameSync(dst + '~', dst);
+        //     notice("COPIED", src + ' => ' + dst);
+        //     resolve(true);
+        // });
     });
 }
 
 function handleFsLink(ref, newRef) {
     return new Promise((resolve, reject) => {
-        if(fs.existsSync(newRef)){
+        if (fs.existsSync(newRef)) {
             fs.unlinkSync(newRef);
         }
         fs.link(ref, newRef, err => {
@@ -278,7 +304,7 @@ function handlePList(path) {
                     key = t;
                 } else if (mode == 2) {
                     data[key] = t;
-                } 
+                }
                 mode = 0;
                 // console.log(JSON.stringify(data));
             };
@@ -334,7 +360,12 @@ function handlePList(path) {
 
 
 app.whenReady().then(() => {
-    createWindow()
+    createWindow();
+    ipcMain.on('set-title', (event, title) => {
+        const webContents = event.sender
+        const win = BrowserWindow.fromWebContents(webContents)
+        win.setTitle("FCPX Companion v." + app.getVersion())
+    })
     ipcMain.handle("dir:load", (event, path) => handleLoadDirectory(path))
     ipcMain.on('log:trace', (event, type, message) => trace(type, message));
     ipcMain.on('log:notice', (event, type, message) => notice(type, message));

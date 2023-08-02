@@ -20,5 +20,6 @@ contextBridge.exposeInMainWorld('myAPI', {
   fslink: (ref, newRef) => ipcRenderer.invoke("file:link", ref, newRef),
   rmdir: (path) => ipcRenderer.send("dir:rmdir", path),
   unlink: (path) => ipcRenderer.send("file:remove", path),
-  fileWrite: (path, contents) => ipcRenderer.invoke("file:write", path, contents)
+  fileWrite: (path, contents) => ipcRenderer.invoke("file:write", path, contents),
+  handleCopyProgress: (callback) => ipcRenderer.on('update-copy-progress', callback)
 })

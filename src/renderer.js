@@ -48,5 +48,6 @@ window.myAPI.homedir().then(h => {
     console.log("HOMEDIR = " + h);
     addUserDirectory(h + "/Movies");
 });
+
 addUserDirectory("/Volumes");
 setInterval(refresh, 500);

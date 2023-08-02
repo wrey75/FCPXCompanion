@@ -193,7 +193,7 @@ function countInLibrary(lib){
         total.linkSize = 0;
         e.links.forEach(l => {
             total.linkSize += (l.size || 0)
-        console.warn('size', l);
+            // console.warn('size', l);
         });
         total.lost += e.lost.length;
     });
@@ -613,7 +613,7 @@ async function backupFile(md5, force) {
     if (force || !destExists) {
         const infos = fileMap[md5];
         await mkdirs(md5dir, true);
-        displayMessage = "Copying " + infos.entries[0].replace(/.*\//, '') + "...";
+        displayMessage = "Copy of " + infos.entries[0].replace(/.*\//, '') + "...";
         await copyFile(infos.entries[0], md5path);
     }
     return md5path;
@@ -642,3 +642,7 @@ async function backupIfNeeded(md5) {
     infos.backuped = true;
     return md5path;
 }
+
+window.myAPI.handleCopyProgress((event, value) => {
+    displayMessage = value;
+  })
