@@ -22,3 +22,8 @@ v0.21.0
 * feat: No more indexing for the `BackupStore`
 * feat: backup store goes to version 1.
 
+v0.22.0
+-------
+
+* feat: Libraries are stored by names.
+* feat: backup store goes to version 2.
