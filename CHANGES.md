@@ -25,5 +25,15 @@ v0.21.0
 v0.22.0
 -------
 
-* feat: Libraries are stored by names.
+* feat: Libraries are stored by names in the `Libraries` store.
+* feat: All media files are also saved in the `Folders` store.
 * feat: backup store goes to version 2.
+
+v0.25.0
+-------
+
+* feat: backups of files found in a library are saved under the "_fcpbubdle" instead of ".fcpbundle" in `Folders`.
+* feat: duplicates are now grouped rather than added at the end of the list.
+* feat: do not round anymore the file sizes.
+* feat: the media is now split in 2 parts: the _files_ (stored in the library itself) and  _linked_  files (stored outside the library).
+

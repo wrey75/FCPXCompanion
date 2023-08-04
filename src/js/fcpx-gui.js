@@ -92,10 +92,12 @@ function refreshDisplay(infos) {
         var html = "";
         infos.fcpxLibraries.forEach((lib,index) => {    
             const mediaSize = lib.totals.media + lib.totals.linkSize;
-            const links = lib.totals.links;
+            const links = lib.totals.linkCount;
             const totalLost = lib.totals.lost;
             html += tag("li", { class: "list-group-item" + (lib.duplicated ? " duplicateLib" : ""), id: "library-" + index });
-            html += '<small><code>' + lib.libraryID + '</code></small><br>'
+            if(lib.duplicated){
+                html += '<small><code>' + lib.libraryID + '</code></small><br>';
+            }
             html += "<b>" + escapeHtml(lib.name) + "</b>"
                 + ' <i class="bi bi-box-arrow-up-right" onClick="return shellOpen(' + jstr(lib.path) + ')"></i>'
                 + " <small>(";
@@ -135,12 +137,13 @@ function refreshDisplay(infos) {
                 className = '';
             }
             html += '<span class="' + className + '">';
-            html += "Media: <b>" + diskSize(mediaSize) + "</b></span>";
-            if (links > 0 || totalLost > 0) {
-                html += " (includes " + links + "  links";
-                // html += lost > 0 ? ', <strong class="text-danger">' + lost + " lost</strong>" : "";
-                html += totalLost > 0 ? ' <span class="text-danger">and ' + totalLost + " lost</span>" : '';
-                html += ")";
+            html += "Media: <b>" + diskSize(lib.totals.media) + '</b> (' + lib.totals.fileCount + ' files)';
+            if(lib.totals.linkCount > 0){
+                html += " + <b>" + diskSize(lib.totals.linkSize) + '</b> (' + lib.totals.linkCount + ' links)';
+            }
+            html += '</span>';
+            if (totalLost > 0) {
+                html += ' <span class="text-danger">and ' + totalLost + " lost</span>";
             }
             html += "</span></small>";
             if(totalLost > 0 && !lib.duplicated){

@@ -89,7 +89,7 @@ async function fslink(current, newOne) {
  * @returns a rounded number of bytes
  */
 function kilobytes(bytes) {
-    return (Math.floor(+bytes / 2048) + 1) * 2048;
+    return bytes; /* (Math.floor(+bytes / 1024) + 1) * 1024 */;
 }
 
 function isVideoFile(path) {
@@ -187,12 +187,14 @@ function countInLibrary(lib){
     const total = {
         media : 0,
         linkSize: 0,
-        links: 0,
+        linkCount: 0,
+        fileCount: 0,
         lost: 0,
     };
     lib.events.forEach((e) => {
         total.media += e.size;
-        total.links += e.links.length;
+        total.linkCount += e.links.length;
+        total.fileCount += e.files.length;
         total.linkSize = 0;
         e.links.forEach(l => {
             total.linkSize += (l.size || 0)
@@ -353,13 +355,16 @@ function uniqueName(library){
 }
 
 function addToLibraries(library){
+    var insertAt = fcpxLibraries.length;
     library.duplicated = false;
     for(var i=0; i < fcpxLibraries.length; i++){
         if(library.libraryID === fcpxLibraries[i].libraryID){
+            insertAt = i + 1;
             library.duplicated = true;
         }
     }
-    fcpxLibraries.push(library);
+    fcpxLibraries.splice(insertAt, 0, library);
+
     if(backupStore != null && !library.duplicated){
         if(backupStore.libs[library.libraryID] && backupStore.libs[library.libraryID].path != library.path){
             // We found the same library with a different path...
