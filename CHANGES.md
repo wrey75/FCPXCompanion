@@ -32,8 +32,16 @@ v0.22.0
 v0.25.0
 -------
 
-* feat: backups of files found in a library are saved under the "_fcpbubdle" instead of ".fcpbundle" in `Folders`.
-* feat: duplicates are now grouped rather than added at the end of the list.
+* feat(duplicates): duplicates are now grouped rather than added at the end of the list.
+* feat(duplicates): do not display the library ID for duplicates.
+* feat(duplicates): the red background for duplicates have been faded to improve the lisibility.
 * feat: do not round anymore the file sizes.
 * feat: the media is now split in 2 parts: the _files_ (stored in the library itself) and  _linked_  files (stored outside the library).
+
+v0.30.0
+-------
+
+* feat: copy  directories using hard links for files bigger than 2KB.
+* fix(backup): Copy the `Motion Templates` directory of the library.
+* feat(backup): the internal files (stored in `Original Media`) are no longer saved into the `Folders` directory avoiding the creation of a _fake_ library.
 

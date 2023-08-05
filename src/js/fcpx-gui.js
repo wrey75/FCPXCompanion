@@ -95,7 +95,7 @@ function refreshDisplay(infos) {
             const links = lib.totals.linkCount;
             const totalLost = lib.totals.lost;
             html += tag("li", { class: "list-group-item" + (lib.duplicated ? " duplicateLib" : ""), id: "library-" + index });
-            if(lib.duplicated){
+            if(!lib.duplicated){
                 html += '<small><code>' + lib.libraryID + '</code></small><br>';
             }
             html += "<b>" + escapeHtml(lib.name) + "</b>"

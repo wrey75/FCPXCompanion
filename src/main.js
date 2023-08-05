@@ -22,7 +22,6 @@ function createWindow() {
     win.webContents.openDevTools();
     win.loadFile('src/index.html').then(() => {
         const title = app.getName() + ' v' + app.getVersion();
-        console.log("TITLE WILL BE " + title);
         win.setTitle(title);
     })
 }
@@ -107,7 +106,7 @@ function warning(type, message) {
  */
 function handleFileSignature(path) {
     return new Promise((resolve, reject) => {
-        const BUFFER_SIZE = 64 * 1024;
+        const BUFFER_SIZE = 128 * 1024;
         const buf = Buffer.alloc(BUFFER_SIZE);
         try {
             if (!fs.existsSync(path)) {
@@ -142,19 +141,18 @@ function handleFileStats(aPath) {
     return new Promise((resolve, reject) => {
         if (fs.existsSync(aPath)) {
             res = fs.statSync(aPath);
-            const ret = {
+            resolve({
                 directory: res.isDirectory(),
                 file: res.isFile(),
-                symbolicLink: res.isSymbolicLink(),
+                symLink: res.isSymbolicLink(),
                 name: path.basename(aPath),
                 size: res.size
-            };
-            resolve(ret);
+            });
         } else {
             resolve({
                 directory: false,
                 file: false,
-                symbolicLink: false,
+                symLink: false,
                 name: null,
                 size: 0
             });
@@ -220,8 +218,14 @@ function handleRemoveFile(path) {
 }
 
 
-
-function handleFileCopy(src, dst) {
+/**
+ * Copy a file.
+ * 
+ * @param {string} src the source file (must exist)
+ * @param {string} dst the destination file
+ * @returns true if copied.
+ */
+function handleCopyFile(src, dst) {
     return new Promise((resolve, reject) => {
         if (!fs.existsSync(src)) {
             resolve(false);
@@ -256,13 +260,6 @@ function handleFileCopy(src, dst) {
             })
             readStream.pipe(writeStream);
         })
-
-        // fs.copyFile(src, dst + '~', err => {
-        //     if(err) throw err;
-        //     fs.renameSync(dst + '~', dst);
-        //     notice("COPIED", src + ' => ' + dst);
-        //     resolve(true);
-        // });
     });
 }
 
@@ -286,7 +283,7 @@ function handleFsLink(ref, newRef) {
  * @param {string} path the file to scan
  * @return a model of the values included in the dictionary.
  */
-function handlePList(path) {
+function handleScanPList(path) {
     return new Promise((resolve, reject) => {
         fs.readFile(path, { encoding: "ascii" }, (err, fileData) => {
             var data = {};
@@ -330,29 +327,6 @@ function handlePList(path) {
             // };
 
             parser.write(fileData).close();
-            /*
-                            var parser = new xml2js.Parser();
-                            parser.parseString(fileData.substring(0, fileData.length), function (err, result) {
-                                json = JSON.stringify(result);
-                                console.log(JSON.stringify(result));
-                            });
-                            console.log("File '" + path + "/ was successfully read.\n");
-                            */
-            /*
-                    // console.log(JSON.stringify(xmlDoc.window));
-                    var children = xmlDoc.window.document.documentElement;
-                    var key = "_";
-                    console.log(JSON.stringify(children));
-                    children.forEach((child) => {
-                        if (child.type() == "element") {
-                            if (child.name() == "key") key = child.text();
-                            else if (child.name() == "string") data[key] = child.text();
-                            else if (child.name() == "integer") data[key] = +child.text();
-                            else if (child.name() == "true") data[key] = true;
-                            else if (child.name() == "false") data[key] = false;
-                        }
-                    });
-                    */
             resolve(data);
         });
     });
@@ -377,8 +351,8 @@ app.whenReady().then(() => {
     ipcMain.handle("file:stat", (event, path) => handleFileStats(path));
     ipcMain.handle("file:exists", (event, path) => handleFileExists(path));
     ipcMain.handle("file:read", (event, path) => handleFileRead(path));
-    ipcMain.handle("file:plist", (event, path) => handlePList(path));
-    ipcMain.handle("file:copy", (event, src, dest) => handleFileCopy(src, dest));
+    ipcMain.handle("file:plist", (event, path) => handleScanPList(path));
+    ipcMain.handle("file:copy", (event, src, dest) => handleCopyFile(src, dest));
     ipcMain.handle("file:link", (event, ref, newRef) => handleFsLink(ref, newRef));
     ipcMain.handle("dir:mkdir", (event, path, recursive) => handleMakeDirectory(path, recursive));
     ipcMain.on("file:unlink", (event, path) => handleRemoveFile(path));
