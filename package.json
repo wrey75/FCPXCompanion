@@ -1,7 +1,7 @@
 {
   "name": "fcpxcompanion",
   "productName": "FCPXCompanion",
-  "version": "0.30.0",
+  "version": "0.50.0",
   "description": "FCPX Companion",
   "main": "src/main.js",
   "scripts": {

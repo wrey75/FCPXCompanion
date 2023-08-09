@@ -58,28 +58,6 @@ function refreshDisplay(infos) {
     if(infos.done){
         document.getElementById("spinner").style.display = "none";
     }
-    // if (infos.nbDirectories > 0) {
-    //     var path = "";
-    //     var parts = infos.currentScanned.split("/");
-    //     if (parts.length > 2) {
-    //         path = parts[0];
-    //         var i = 1;
-    //         while (i < parts.length - 1 && (path.length + + parts[i].length + parts[parts.length - 1].length) < 45) {
-    //             path = path + "/" + parts[i++];
-    //         }
-    //         if (i < parts.length - 1) {
-    //             path = path + "/...";
-    //         }
-    //         path = path + "/" + parts[parts.length - 1];
-    //     } else {
-    //         path = infos.currentScanned;
-    //     }
-    //     textToDisplay = "Scanning " + path;
-    // } else if (infos.storageDirectory && infos.filesBackuped < infos.backupPromises.length) {
-    //     textToDisplay = "Backuping " + infos.currentBackup;
-    // } else {
-    //     document.getElementById("spinner").style.display = "none";
-    // }
     var size = Math.floor((infos.scannedDirectories * 100.0) / infos.totalDirectories);
     if (infos.storageDirectory) {
         size = size / 2 + Math.floor(((filesBackuped + 1) * 50.0) / (infos.backupPromises.length + 1));
@@ -88,7 +66,7 @@ function refreshDisplay(infos) {
     const domScan = document.getElementById("scanProgress");
     domScan.getElementsByTagName("div")[0].style = text;
     document.getElementById("scanText").innerText = infos.message;
-    if (fcpxLibraries) {
+    if (fcpxLibraries.length > 0) {
         var html = "";
         infos.fcpxLibraries.forEach((lib,index) => {    
             const mediaSize = lib.totals.media + lib.totals.linkSize;
@@ -165,47 +143,59 @@ function refreshDisplay(infos) {
         });
         $("#libraryContents").html(html);
         $("#lib-badge").text(fcpxLibraries.length);
+    }
 
-        // Informations
-        var txt = "";
-        txt += "<table>";
-        txt += "<tr><td>Scanned directories:</td><td>" + infos.scannedDirectories + "</td></tr>";
-        txt += "<tr><td>Total of directories:</td><td>" + infos.totalDirectories + "</td></tr>";
-        txt += "<tr><td>Registered files:</td><td>" + infos.filesInMap + "</td></tr>";
-        if (infos.storageDirectory) {
-            txt += "<tr><td>Backup Storage:</td><td>" + storageDirectory + "</td></tr>";
-            txt += "<tr><td>Files backuped:</td><td>" + filesBackuped + "</td></tr>";
-            txt += "<tr><td>Files to backup:</td><td>" + backupPromises.length + "</td></tr>";
-        }
+    // Informations
+    var txt = "";
+    txt += "<table>";
+    txt += "<tr><td>Scanned directories:</td><td>" + infos.scannedDirectories + "</td></tr>";
+    txt += "<tr><td>Total of directories:</td><td>" + infos.totalDirectories + "</td></tr>";
+    txt += "<tr><td>Registered files:</td><td>" + infos.filesInMap + "</td></tr>";
+    if (infos.storageDirectory) {
+        txt += "<tr><td>Backup Storage:</td><td>" + storageDirectory + "</td></tr>";
+        txt += "<tr><td>Files backuped:</td><td>" + filesBackuped + "</td></tr>";
+        txt += "<tr><td>Files to backup:</td><td>" + backupPromises.length + "</td></tr>";
+    }
+    txt += "</table>";
+    jQuery("#informationData").html(txt);
+    
+    // List of backups
+    if(infos.backupStore){
+        var html = '';
+        var array = [... Object.values(infos.backupStore)];
+        array.sort((a,b) => a.path.localeCompare(b.path));
+        array.forEach( (bck,index) => {
+            html += tag("li", { class: "list-group-item", id: "bck-" + index });
+            html += '<small><code>' + bck.id + '</code></small><br>'
+            html += "<small>" + escapeHtml(bck.path) + "</small><br>"
+            html += "<small>First scan: " + new Date(bck.first).toLocaleDateString();
+            if(bck.last){
+                html += ", Last seen: " + new Date(bck.last).toLocaleDateString();
+            }
+            if(bck.updated){
+                html += ", Last backup: " + new Date(bck.updated).toLocaleDateString();
+            }
+            html += '</small><br>';
+            if(bck.lost > 0){
+                html += '<span class="text-danger"><strong>Missing ' + bck.lost + ' files</strong></span><br>';
+            }
+            //html += JSON.stringify(bck);
+            html += '</li>'
+        });
         txt += "</table>";
-        jQuery("#informationData").html(txt);
+        jQuery("#backupContents").html(html);
+    }
 
-        // List of backups
-        if(infos.backupStore){
-            var html = '';
-            var array = [... Object.values(infos.backupStore)];
-            array.sort((a,b) => a.path.localeCompare(b.path));
-            array.forEach( (bck,index) => {
-                html += tag("li", { class: "list-group-item", id: "bck-" + index });
-                html += '<small><code>' + bck.id + '</code></small><br>'
-                html += "<small>" + escapeHtml(bck.path) + "</small><br>"
-                html += "<small>First scan: " + new Date(bck.first).toLocaleDateString();
-                if(bck.last){
-                    html += ", Last seen: " + new Date(bck.last).toLocaleDateString();
-                }
-                if(bck.updated){
-                    html += ", Last backup: " + new Date(bck.updated).toLocaleDateString();
-                }
-                html += '</small><br>';
-                if(bck.lost > 0){
-                    html += '<span class="text-danger"><strong>Missing ' + bck.lost + ' files</strong></span><br>';
-                }
-                //html += JSON.stringify(bck);
-                html += '</li>'
-            });
-            txt += "</table>";
-            jQuery("#backupContents").html(html);
-        }
+    if(infos.fcpxBackups.length > 0){
+        html = '';
+        infos.fcpxBackups.sort();
+        infos.fcpxBackups.forEach((path,index) => {
+            // html += tag('li', { class: "list-group-item", id: "fcpx-" + index });
+            html += '<small>' + escapeHtml(path) + '</small><br>';
+            // html += '</li>';
+        })
+        jQuery("#fcpxContents").html(html);
+        jQuery("#fcpx-badge").text(infos.fcpxBackups.length);
     }
 }
 
@@ -239,7 +229,7 @@ function selectTab(activeTab) {
 }
 
 jQuery(function () {
-    ["library", "backup", "information"].forEach((tab) => {
+    ["library", "backup", 'fcpx', "information"].forEach((tab) => {
         $("#" + tab + "Tab").on("click", function () {
             selectTab(tab);
         });

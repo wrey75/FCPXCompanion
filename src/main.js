@@ -162,7 +162,10 @@ function handleFileStats(aPath) {
 
 function handleFileExists(path) {
     return new Promise((resolve, reject) => {
-        resolve(fs.existsSync(path));
+        const found = fs.existsSync(path);
+        console.log("RESOLVING: " + found + '  - ' + path);
+        resolve(found);
+        console.log("RESOLVED_: " + found + '  - ' + path);
     });
 }
 

@@ -45,3 +45,11 @@ v0.30.0
 * fix(backup): Copy the `Motion Templates` directory of the library.
 * feat(backup): the internal files (stored in `Original Media`) are no longer saved into the `Folders` directory avoiding the creation of a _fake_ library.
 
+v0.50.0
+-------
+
+* feat: Paths are abreviated if they exceed a specific length.
+* feat: better display of objects especially in special cases.
+* feat: added the "FCPX backups" list.
+* fix: when the backup can start _before_ the FCPBackup disk has been found.
+* fix: can copy source directories with ".localized" extnsion (but without the extension).

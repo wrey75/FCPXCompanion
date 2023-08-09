@@ -42,6 +42,7 @@ checkForBackupDisk().then( path => {
     } else {
         jQuery("#backupContents").html("You must have a disk named <b>FCPSlave</b> in order to have your data backuped.");
     }
+    backupDone = -1;
 })
 
 window.myAPI.homedir().then(h => {

@@ -18,7 +18,7 @@ var fcpxBackups = []; // The backups made by Apple found
 var missingFiles = [];
 var backupStore;
 var backupList = []; // Libraries to backup...
-var backupDone = 0;
+var backupDone = -2; // No backup started...
 
 const BACKUP_DIR = '/Volumes/FCPSlave';
 // const BACKUP_DIR = "/Users/Shared/FCPSlave"; // For test purposes only
@@ -49,33 +49,33 @@ function removeDirectory(path) {
 
 
 async function homedir() {
-    return window.myAPI.homedir();
+    return await window.myAPI.homedir();
 }
 
-function scanPList(path) {
-    return window.myAPI.scanPList(path);
+async function scanPList(path) {
+    return await window.myAPI.scanPList(path);
 }
 
 async function fileStats(path) {
-    return window.myAPI.fileStats(path);
+    return await window.myAPI.fileStats(path);
 }
 
 async function fileExists(path) {
-    return window.myAPI.fileExists(path);
+    return await window.myAPI.fileExists(path);
 }
 
 async function mkdirs(path, recursive) {
-    return window.myAPI.mkdirs(path, recursive);
+    return await window.myAPI.mkdirs(path, recursive);
 }
 
 async function fileWrite(path, contents) {
-    return window.myAPI.fileWrite(path, contents);
+    return await window.myAPI.fileWrite(path, contents);
 }
 
 
 async function fslink(current, newOne) {
     // trace('LINK_TO', current + ' --> ' + newOne);
-    return window.myAPI.fslink(current, newOne);
+    return await window.myAPI.fslink(current, newOne);
 }
 
 /**
@@ -228,9 +228,14 @@ async function reloadLibrary(index) {
  * @param {string} dst the destination path (created if not exists). 
  */
 async function copyDirectory(src, dst, useLinks) {
-    const exists = await fileExists(src);
+    var exists = await fileExists(src);
     if (!exists) {
-        throw new Error("The source " + src + ' does not exists!');
+        exists = await fileExists(src + '.localized');
+        if(!exists){
+            throw new Error('The source "' + src + '" does not exists!');
+        } else {
+            src += '.localized';
+        }
     }
     const files = await loadDirectory(src);
     await mkdirs(dst, true);
@@ -265,7 +270,7 @@ async function backupLibrary(library) {
         console.warn("Can not backup: duplicate library");
         return false;
     }
-    const libraryName = backupStore.libs[library.libraryID].name || uniqueName(library);
+    const libraryName = backupStore.libs[library.libraryID]?.name || uniqueName(library);
     const libraryPath = storageDirectory + '/Libraries/' + libraryName + '.fcpbundle';
     displayMessage = "Backuping " + library.name + "...";
     const folderPath = storageDirectory + '/Folders' + library.path;
@@ -297,7 +302,7 @@ async function backupLibrary(library) {
 
         // Backup the projects in the library
         for (var j = 0; j < event.projects.length; j++) {
-            const projectDir = eventDir + '/' + event.projects[j];
+            // const projectDir = eventDir + '/' + event.projects[j];
             // await mkdirs(projectDir, false);
             await mkdirs(libraryPath + '/' + event.name + '/' + event.projects[j], false);
             // await copyFile(library.path + '/' + event.name + '/' + event.projects[j] + '/CurrentVersion.fcpevent', projectDir + '/CurrentVersion.fcpevent');
@@ -321,6 +326,9 @@ async function backupLibrary(library) {
             // await mkdirs(dirname(storageDirectory + '/Folders' + event.files[j].path), true);
             // await fslink(md5path, storageDirectory + '/Folders' + '/' + event.files[j].path);
             await fslink(md5path, libraryPath + '/' + event.name + '/Original Media/' + event.files[j].name);
+            const destPath = storageDirectory + '/Folders' + library.path.replace(/\.fcpbundle$/, '_fcpbundle') + '/' + event.name;
+            await mkdirs(destPath, true);
+            await fslink(md5path, destPath + '/' + event.files[j].name);
         }
     }
     backupStore.libs[library.libraryID].updated = new Date().toISOString();
@@ -462,15 +470,15 @@ async function registerLibrary(path) {
  * @returns a MD5
  */
 async function fileSignature(path) {
-    return window.myAPI.md5file(path);
+    return await window.myAPI.md5file(path);
 }
 
 async function fileRead(path) {
-    return window.myAPI.fileRead(path);
+    return await window.myAPI.fileRead(path);
 }
 
 async function copyFile(source, destination) {
-    return window.myAPI.copyFile(source, destination);
+    return await window.myAPI.copyFile(source, destination);
 }
 
 async function registerFile(path) {
@@ -551,23 +559,42 @@ function refresh() {
     };
     if (scannedDirectories < totalDirectories) {
         // Nothing to do...
-    } else if (backupDone == 0) {
+    } else if (backupDone == -1) {
+        backupDone = 0;
         backupList.forEach(lib => {
             backupLibrary(lib).then(() => {
                 backupDone++;
             });
         });
     } else if (backupDone == backupList.length) {
-        displayMessage = "Evreything scanned. You can exit.";
+        displayMessage = "Everything scanned. You can exit.";
         infos.done = true;
     }
     infos.message = displayMessage;
-    const len = infos.message.length;
-    if (len > 110) {
-        infos.message = displayMessage.substring(0, 50) + ' ... ' + displayMessage.substring(len - 50, len);
-    }
     displayMessage += '.';
     refreshDisplay(infos);
+}
+
+function abbreviate(path, maxLength){
+    if(path.length > maxLength) {
+        while (path.length > maxLength && path.indexOf('/') != -1) {
+            parts = path.split('/');
+            var newPath = '';
+            var removed = false;
+            for(var j = 0; j < parts.length; j++){
+                if(parts[j] == '...'){
+                    // Nothing to do
+                } else if(!removed && j >= parts.length /2){
+                    removed = true;
+                    newPath += '/...';
+                } else {
+                    newPath += '/' + parts[j];
+                }
+            }
+            path = newPath.substring(1);
+        }
+    }
+    return path;
 }
 
 async function addUserDirectory(path) {
@@ -575,7 +602,11 @@ async function addUserDirectory(path) {
     scanDirectory(path).then(data => {
         nbDirectories += data.length;
         data.forEach(name => {
-            addUserDirectory(path + '/' + name);
+            if(name.match('\.(app|photoslibrary)$') || name === 'Backups.backupdb'){
+                trace("SKIP", name);
+            } else {
+                addUserDirectory(path + '/' + name);
+            }
         });
         nbDirectories -= (data.length + 1);
     });
@@ -625,9 +656,9 @@ async function checkForBackupDisk() {
     return null;
 }
 
-function loadDirectory(path) {
+async function loadDirectory(path) {
     // currentScanned = path;
-    return window.myAPI.loadDirectory(path);
+    return await window.myAPI.loadDirectory(path);
 }
 
 async function scanDirectory(path) {
@@ -642,7 +673,7 @@ async function scanDirectory(path) {
     const files = await loadDirectory(path);
     const dirList = [];
     for (var i = 0; i < files.length; i++) {
-        displayMessage = 'Scanning ' + path + '...';
+        displayMessage = 'Scanning ' + abbreviate(path, 80) + '...';
         const entry = files[i];
         var fullPath = path.replace(/\/$/, "") + "/" + entry.name;
         if (entry.name.match(/^\./)) {
