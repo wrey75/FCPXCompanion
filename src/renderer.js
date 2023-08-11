@@ -3,7 +3,7 @@
  * To learn more about the differences between the "main" and the "renderer" context in
  * Electron, visit:
  *
- * https://electronjs.org/docs/latest/tutorial/process-model
+ * https://electronjs.org/docs/tutorial/application-architecture#main-and-renderer-processes
  *
  * By default, Node.js integration in this file is disabled. When enabling Node.js integration
  * in a renderer process, please be aware of potential security implications. You can read
@@ -26,29 +26,14 @@
  * ```
  */
 
-// import './css/bootstrap.css';
-//import './js/jquery.js';
-// import './js/fcpx-gui';
+// Import our custom CSS
+import './scss/styles.scss'
 
-console.log(
-  '👋 This message is being logged by "renderer.js", included via webpack'
-);
+// Import all of Bootstrap's JS
+import * as bootstrap from 'bootstrap'
+import './index.css';
 
-// console.log(window.myAPI.homedir());
-checkForBackupDisk().then( path => {
-    // console.warn("BACKUP = " + path);
-    if(path){
-        jQuery("#backupContents").html("Backup is be done at "+ path);
-    } else {
-        jQuery("#backupContents").html("You must have a disk named <b>FCPSlave</b> in order to have your data backuped.");
-    }
-    backupDone = -1;
-})
+console.log('👋 This message is being logged by "renderer.js", included via webpack');
 
-window.myAPI.homedir().then(h => {
-    console.log("HOMEDIR = " + h);
-    addUserDirectory(h + "/Movies");
-});
+import './app.jsx';
 
-addUserDirectory("/Volumes");
-setInterval(refresh, 500);

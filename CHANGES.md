@@ -53,3 +53,13 @@ v0.50.0
 * feat: added the "FCPX backups" list.
 * fix: when the backup can start _before_ the FCPBackup disk has been found.
 * fix: can copy source directories with ".localized" extnsion (but without the extension).
+
+v0.60.0
+-------
+
+* refactor: integration of React for optimization (includes WebPack).
+* refactor: code is not changed and React not used.
+* fix: a direct usage of 'fcpxLibraries' in the function "refreshDisplay()"
+* fix: plain JS errors reported by Webpack.
+* NOTE: this version does not include any enhancements but is a rewrite to use React in the next version.
+* refactor: removed jQuery usage in `fcpx-renderer.js`

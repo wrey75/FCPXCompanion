@@ -1,3 +1,6 @@
+let jQuery = require('jquery');
+let $ = jQuery;
+
 function diskSize(bytes) {
     // console.log("diskSize("+bytes+")")
     if (bytes === 0) {
@@ -66,7 +69,7 @@ function refreshDisplay(infos) {
     const domScan = document.getElementById("scanProgress");
     domScan.getElementsByTagName("div")[0].style = text;
     document.getElementById("scanText").innerText = infos.message;
-    if (fcpxLibraries.length > 0) {
+    if (infos.fcpxLibraries.length > 0) {
         var html = "";
         infos.fcpxLibraries.forEach((lib,index) => {    
             const mediaSize = lib.totals.media + lib.totals.linkSize;
@@ -142,7 +145,7 @@ function refreshDisplay(infos) {
             html += "</li>";
         });
         $("#libraryContents").html(html);
-        $("#lib-badge").text(fcpxLibraries.length);
+        $("#lib-badge").text(infos.fcpxLibraries.length);
     }
 
     // Informations
@@ -198,6 +201,8 @@ function refreshDisplay(infos) {
         jQuery("#fcpx-badge").text(infos.fcpxBackups.length);
     }
 }
+
+module.exports.refreshDisplay = refreshDisplay;
 
 function deleteEventDirectory(index, subdir) {
     fcpxLibraries[index].events.forEach((evt) => {

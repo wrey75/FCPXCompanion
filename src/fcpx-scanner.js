@@ -5,6 +5,8 @@
  *
  */
 
+import { refreshDisplay } from "./fcpx-gui";
+
 // var currentScanned = "/";
 var scanErrors = [];
 var nbDirectories = 0;
@@ -19,6 +21,7 @@ var missingFiles = [];
 var backupStore;
 var backupList = []; // Libraries to backup...
 var backupDone = -2; // No backup started...
+var displayMessage = 'Starting...';
 
 const BACKUP_DIR = '/Volumes/FCPSlave';
 // const BACKUP_DIR = "/Users/Shared/FCPSlave"; // For test purposes only
@@ -516,7 +519,7 @@ async function directorySize(path) {
     if (await fileExists(path)) {
         var files = await loadDirectory(path);
         for (var i = 0; i < files.length; i++) {
-            entry = files[i];
+            const entry = files[i];
             if (entry.symLink) {
                 size += kilobytes(0);
             } else if (entry.directory) {
@@ -540,7 +543,7 @@ async function directorySize(path) {
 /**
  * Refresh display 
  */
-function refresh() {
+export function refresh() {
     // console.log("Called refresh() in MAIN");
 
     const infos = {
@@ -575,10 +578,12 @@ function refresh() {
     refreshDisplay(infos);
 }
 
+// module.exports.refresh = refresh;
+
 function abbreviate(path, maxLength){
     if(path.length > maxLength) {
         while (path.length > maxLength && path.indexOf('/') != -1) {
-            parts = path.split('/');
+            const parts = path.split('/');
             var newPath = '';
             var removed = false;
             for(var j = 0; j < parts.length; j++){
@@ -597,7 +602,7 @@ function abbreviate(path, maxLength){
     return path;
 }
 
-async function addUserDirectory(path) {
+export async function addUserDirectory(path) {
     nbDirectories++;
     scanDirectory(path).then(data => {
         nbDirectories += data.length;
@@ -612,6 +617,8 @@ async function addUserDirectory(path) {
     });
 }
 
+// module.exports.addUserDirectory = addUserDirectory;
+
 function isValidDirectory(path) {
     return (
         path.match(new RegExp("^/Users/")) || path.match(new RegExp("^/Volumes/"))
@@ -620,7 +627,7 @@ function isValidDirectory(path) {
 
 var storageDirectory = null;
 
-async function checkForBackupDisk() {
+export async function checkForBackupDisk() {
     if (await fileExists(BACKUP_DIR)) {
         storageDirectory = BACKUP_DIR + "/BackupStore";
         if (await fileExists(storageDirectory)) {
@@ -651,10 +658,13 @@ async function checkForBackupDisk() {
         }
         console.log("SAVE BACKUP STORE.", backupStore);
         await fileWrite(storageDirectory + "/store.json", JSON.stringify(backupStore));
+        backupDone = -1;
         return storageDirectory;
     }
     return null;
 }
+
+// module.exports.checkForBackupDisk = checkForBackupDisk;
 
 async function loadDirectory(path) {
     // currentScanned = path;
