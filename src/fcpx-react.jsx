@@ -8,6 +8,37 @@ const DebugInfo = ({ data }) => {
     )
 }
 
+const SimpleBackup = ({ id, path, first, last, updated, lost }) => {
+    return (
+        <li className="list-group-item" key={id}>
+            <small><code>{id}</code></small><br />
+            <small>{path}</small><br />
+            <small>First scan: {new Date(first).toLocaleDateString()}
+                {last ? (<React.Fragment> Last seen: {new Date(last).toLocaleDateString()}</React.Fragment>) : ''}
+                {updated ? (<React.Fragment>, Last backup: {new Date(updated).toLocaleDateString()}</React.Fragment>) : ''}
+            </small><br />
+            {lost > 0 ? (<React.Fragment><span className="text-danger"><strong>Missing {lost} files</strong></span><br /></React.Fragment>) : ''}
+        </li>
+    );
+}
+
+const BackupContents = ({ infos }) => {
+    if(!infos){
+        console.warn("NO DATA AVAILABLE.");
+        return (<></>);
+    }
+    var array = [...Object.values(infos.backupStore)];
+    if (array.length == 0) {
+        return (<div>No backup found until now...</div>);
+    }
+    array.sort((a, b) => a.path.localeCompare(b.id));
+    return (
+        <ul id="backupContents" className="list-group" style={{ display: "none" }}>
+            {array.map((x) => <SimpleBackup id={x.id} path={x.path} first={x.first} last={x.last} updated={x.last} lost={x.lost} />)}
+        </ul>
+    )
+}
+
 const InformationData = ({ props }) => {
     if (!props) {
         console.warn("DATA NOT YET AVAILABLE");
@@ -37,6 +68,9 @@ const InformationData = ({ props }) => {
 }
 
 const App = ({ status }) => {
+    // if(!status){
+    //     return (<div>Initialising...</div>);
+    // }
     return (
         <div className="container">
             <h1>FCPX Companion</h1>
@@ -90,6 +124,7 @@ const App = ({ status }) => {
                     </li>
                 </ul>
 
+                <BackupContents infos={status}></BackupContents>
                 <ul id="backupContents" className="list-group" style={{ display: "none" }}>
                     <li className="list-group-item disabled">
                         To backup your FinalCut libraries, you must have a disk named

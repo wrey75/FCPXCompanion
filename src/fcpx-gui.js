@@ -56,6 +56,10 @@ function jstr(v){
 var backupPromises = [];
 
 function refreshDisplay(infos) {
+    if(!document.getElementById("scanProgress")){
+        console.warn("UI is not ready...");
+        return;
+    }
     if(infos.done){
         document.getElementById("spinner").style.display = "none";
     }
@@ -144,46 +148,6 @@ function refreshDisplay(infos) {
         });
         $("#libraryContents").html(html);
         $("#lib-badge").text(infos.fcpxLibraries.length);
-    }
-
-    // // Informations
-    // var txt = "";
-    // txt += "<table>";
-    // txt += "<tr><td>Scanned directories:</td><td>" + infos.scannedDirectories + "</td></tr>";
-    // txt += "<tr><td>Total of directories:</td><td>" + infos.totalDirectories + "</td></tr>";
-    // txt += "<tr><td>Registered files:</td><td>" + infos.filesInMap + "</td></tr>";
-    // if (infos.storageDirectory) {
-    //     txt += "<tr><td>Backup Storage:</td><td>" + infos.storageDirectory + "</td></tr>";
-    //     txt += "<tr><td>Files backuped:</td><td>" + filesBackuped + "</td></tr>";
-    //     txt += "<tr><td>Files to backup:</td><td>" + backupPromises.length + "</td></tr>";
-    // }
-    // txt += "</table>";
-    // jQuery("#informationData").html(txt);
-    
-    // List of backups
-    if(infos.backupStore){
-        var html = '';
-        var array = [... Object.values(infos.backupStore)];
-        array.sort((a,b) => a.path.localeCompare(b.path));
-        array.forEach( (bck,index) => {
-            html += tag("li", { class: "list-group-item", id: "bck-" + index });
-            html += '<small><code>' + bck.id + '</code></small><br>'
-            html += "<small>" + escapeHtml(bck.path) + "</small><br>"
-            html += "<small>First scan: " + new Date(bck.first).toLocaleDateString();
-            if(bck.last){
-                html += ", Last seen: " + new Date(bck.last).toLocaleDateString();
-            }
-            if(bck.updated){
-                html += ", Last backup: " + new Date(bck.updated).toLocaleDateString();
-            }
-            html += '</small><br>';
-            if(bck.lost > 0){
-                html += '<span class="text-danger"><strong>Missing ' + bck.lost + ' files</strong></span><br>';
-            }
-            //html += JSON.stringify(bck);
-            html += '</li>'
-        });
-        jQuery("#backupContents").html(html);
     }
 
     if(infos.fcpxBackups.length > 0){
