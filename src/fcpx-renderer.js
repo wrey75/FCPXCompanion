@@ -3,7 +3,7 @@ import { checkForBackupDisk, addUserDirectory, refresh } from './fcpx-scanner'
 
 
 checkForBackupDisk().then( path => {
-    const elem = document.getElementById("backupContents");
+    var elem = document.getElementById("backupContents");
     if(path){
         elem.innerHTML = "Backup will be done at "+ path;
     } else {
@@ -18,4 +18,3 @@ window.myAPI.homedir().then(h => {
 });
 
 addUserDirectory("/Volumes");
-setInterval(refresh, 500); // MUST GO TO REACT

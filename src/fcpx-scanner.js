@@ -17,7 +17,6 @@ var fileMap = {};
 var extraFiles = [];
 var fcpxLibraries = [];
 var fcpxBackups = []; // The backups made by Apple found
-var missingFiles = [];
 var backupStore;
 var backupList = []; // Libraries to backup...
 var backupDone = -2; // No backup started...
@@ -349,7 +348,7 @@ async function backupLibrary(library) {
  * @returns
  */
 async function loadLibrary(path) {
-    console.warn("Loading FCPX " + path + '...');
+    console.log("Loading FCPX " + path + '...');
     var library = await scanPList(path + "/Settings.plist");
     library.events = [];
     library.name = path.replace(/.*\//, "").replace(/\.fcpbundle$/, "");
@@ -557,9 +556,19 @@ export function refresh() {
         extraFiles: extraFiles,
         fcpxLibraries: fcpxLibraries,
         fcpxBackups: fcpxBackups,
-        'backupStore': (backupStore ? backupStore.libs : []),
+        backupStore: (backupStore ? backupStore.libs : []),
         done: false
     };
+   
+    // Add backup information
+    if(backupDone >= -1){
+        infos.backup = {
+            directory: storageDirectory,
+            done: Math.max(0, backupDone),
+            total: backupList.length,
+        };
+    }
+    
     if (scannedDirectories < totalDirectories) {
         // Nothing to do...
     } else if (backupDone == -1) {
@@ -576,6 +585,7 @@ export function refresh() {
     infos.message = displayMessage;
     displayMessage += '.';
     refreshDisplay(infos);
+    return infos;
 }
 
 // module.exports.refresh = refresh;

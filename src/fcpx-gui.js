@@ -56,8 +56,6 @@ function jstr(v){
 var backupPromises = [];
 
 function refreshDisplay(infos) {
-    //var textToDisplay = "All directories scanned.";
-    // jQuery("#debug").html("<pre>" + JSON.stringify(infos, null, 2) +"</pre>");
     if(infos.done){
         document.getElementById("spinner").style.display = "none";
     }
@@ -148,19 +146,19 @@ function refreshDisplay(infos) {
         $("#lib-badge").text(infos.fcpxLibraries.length);
     }
 
-    // Informations
-    var txt = "";
-    txt += "<table>";
-    txt += "<tr><td>Scanned directories:</td><td>" + infos.scannedDirectories + "</td></tr>";
-    txt += "<tr><td>Total of directories:</td><td>" + infos.totalDirectories + "</td></tr>";
-    txt += "<tr><td>Registered files:</td><td>" + infos.filesInMap + "</td></tr>";
-    if (infos.storageDirectory) {
-        txt += "<tr><td>Backup Storage:</td><td>" + storageDirectory + "</td></tr>";
-        txt += "<tr><td>Files backuped:</td><td>" + filesBackuped + "</td></tr>";
-        txt += "<tr><td>Files to backup:</td><td>" + backupPromises.length + "</td></tr>";
-    }
-    txt += "</table>";
-    jQuery("#informationData").html(txt);
+    // // Informations
+    // var txt = "";
+    // txt += "<table>";
+    // txt += "<tr><td>Scanned directories:</td><td>" + infos.scannedDirectories + "</td></tr>";
+    // txt += "<tr><td>Total of directories:</td><td>" + infos.totalDirectories + "</td></tr>";
+    // txt += "<tr><td>Registered files:</td><td>" + infos.filesInMap + "</td></tr>";
+    // if (infos.storageDirectory) {
+    //     txt += "<tr><td>Backup Storage:</td><td>" + infos.storageDirectory + "</td></tr>";
+    //     txt += "<tr><td>Files backuped:</td><td>" + filesBackuped + "</td></tr>";
+    //     txt += "<tr><td>Files to backup:</td><td>" + backupPromises.length + "</td></tr>";
+    // }
+    // txt += "</table>";
+    // jQuery("#informationData").html(txt);
     
     // List of backups
     if(infos.backupStore){
@@ -185,7 +183,6 @@ function refreshDisplay(infos) {
             //html += JSON.stringify(bck);
             html += '</li>'
         });
-        txt += "</table>";
         jQuery("#backupContents").html(html);
     }
 
