@@ -18,4 +18,4 @@ window.myAPI.homedir().then(h => {
 });
 
 addUserDirectory("/Volumes");
-setInterval(refresh, 500);
+setInterval(refresh, 500); // MUST GO TO REACT

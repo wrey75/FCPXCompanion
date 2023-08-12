@@ -63,3 +63,10 @@ v0.60.0
 * fix: plain JS errors reported by Webpack.
 * NOTE: this version does not include any enhancements but is a rewrite to use React in the next version.
 * refactor: removed jQuery usage in `fcpx-renderer.js`
+
+v0.80.0
+-------
+
+refactor: moved "index.html" to "fcpx-react.jsx" using React &lt;App&gt; component.
+
+
