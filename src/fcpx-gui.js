@@ -146,7 +146,7 @@ function refreshDisplay(infos) {
             // html += JSON.stringify(lib);
             html += "</li>";
         });
-        $("#libraryContents").html(html);
+        $("#nav-library").html('<ul class="list-group">' + html + '</ul>');
         $("#lib-badge").text(infos.fcpxLibraries.length);
     }
 
@@ -158,7 +158,7 @@ function refreshDisplay(infos) {
             html += '<small>' + escapeHtml(path) + '</small><br>';
             // html += '</li>';
         })
-        jQuery("#fcpxContents").html(html);
+        jQuery("#nav-autosave").html(html);
         jQuery("#fcpx-badge").text(infos.fcpxBackups.length);
     }
 }
@@ -184,21 +184,21 @@ function deleteTranscoded(index) {
     return false;
 }
 
-function selectTab(activeTab) {
-    console.log("tab " + activeTab + " selected.");
-    $("#tabs .nav-link").each(function (idx) {
-        $(this).removeClass("active");
-        $("#" + this.id.substring(0, this.id.length - 3) + "Contents").hide();
-        $("#tabs #" + activeTab + "Tab").addClass("active");
-        $("#" + activeTab + "Contents").show();
-    });
-}
+// function selectTab(activeTab) {
+//     console.log("tab " + activeTab + " selected.");
+//     $("#tabs .nav-link").each(function (idx) {
+//         $(this).removeClass("active");
+//         $("#" + this.id.substring(0, this.id.length - 3) + "Contents").hide();
+//         $("#tabs #" + activeTab + "Tab").addClass("active");
+//         $("#" + activeTab + "Contents").show();
+//     });
+// }
 
-jQuery(function () {
-    ["library", "backup", 'fcpx', "information"].forEach((tab) => {
-        $("#" + tab + "Tab").on("click", function () {
-            selectTab(tab);
-        });
-    });
-    selectTab("library");
-});
+// jQuery(function () {
+//     ["library", "backup", 'fcpx', "information"].forEach((tab) => {
+//         $("#" + tab + "Tab").on("click", function () {
+//             selectTab(tab);
+//         });
+//     });
+//     selectTab("library");
+// });

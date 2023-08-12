@@ -6,7 +6,7 @@ import App from './fcpx-react.jsx';
 
 const container = document.getElementById('app');
 const root = createRoot(container); // createRoot(container!) if you use TypeScript
-root.render(<App />);
+// root.render(<App />);
 
 setInterval(() => {
     const props = refresh(); // <-- Using the old method with manual rendering

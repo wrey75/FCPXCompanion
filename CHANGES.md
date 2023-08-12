@@ -72,7 +72,7 @@ A complete refactoring using React.
 * v0.80.0: moved "index.html" to "fcpx-react.jsx" using React &lt;App&gt; component.
 * v0.80.1: refactored "informationData" with passing the information though &lt;App&gt;.
 * v0.80.2: refactored "backupContents"
-
+* v0.80.3: refactored tab changes to remove jQuery use replaced by Bootrap 5 implementation.
 
 
 

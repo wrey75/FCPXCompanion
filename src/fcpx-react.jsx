@@ -23,7 +23,7 @@ const SimpleBackup = ({ id, path, first, last, updated, lost }) => {
 }
 
 const BackupContents = ({ infos }) => {
-    if(!infos){
+    if (!infos) {
         console.warn("NO DATA AVAILABLE.");
         return (<></>);
     }
@@ -33,7 +33,7 @@ const BackupContents = ({ infos }) => {
     }
     array.sort((a, b) => a.path.localeCompare(b.id));
     return (
-        <ul id="backupContents" className="list-group" style={{ display: "none" }}>
+        <ul className="list-group">
             {array.map((x) => <SimpleBackup id={x.id} path={x.path} first={x.first} last={x.last} updated={x.last} lost={x.lost} />)}
         </ul>
     )
@@ -103,42 +103,34 @@ const App = ({ status }) => {
             </table>
 
             <div className="row">
-                <ul id="tabs" className="nav nav-tabs">
-                    <li className="nav-item">
-                        <a id="libraryTab" className="nav-link active" aria-current="page" href="#">Librairies (<span id="lib-badge" >0</span>)</a>
-                    </li>
-                    <li className="nav-item">
-                        <a id="backupTab" className="nav-link" href="#">Backups</a>
-                    </li>
-                    <li className="nav-item">
-                        <a id="fcpxTab" className="nav-link" href="#">FCPX Backups  (<span id="fcpx-badge" >0</span>)</a>
-                    </li>
-                    <li className="nav-item">
-                        <a id="informationTab" className="nav-link" href="#">Informations</a>
-                    </li>
-                </ul>
+                <nav>
+                    <div className="nav nav-tabs" id="nav-tab" role="tablist">
+                        <button className="nav-link active" id="nav-library-tab" data-bs-toggle="tab" data-bs-target="#nav-library" type="button" role="tab" aria-controls="nav-library" aria-selected="true">Librairies (<span id="lib-badge" >0</span>)</button>
+                        <button className="nav-link" id="nav-backups-tab" data-bs-toggle="tab" data-bs-target="#nav-backups" type="button" role="tab" aria-controls="nav-backups" aria-selected="false">Backups</button>
+                        <button className="nav-link" id="nav-autosave-tab" data-bs-toggle="tab" data-bs-target="#nav-autosave" type="button" role="tab" aria-controls="nav-autosauve" aria-selected="false">Auto saved (<span id="fcpx-badge" >0</span>)</button>
+                        <button className="nav-link" id="nav-infos-tab" data-bs-toggle="tab" data-bs-target="#nav-infos" type="button" role="tab" aria-controls="nav-infos" aria-selected="false">Informations</button>
+                    </div>
+                </nav>
+                <div className="tab-content" id="nav-tabContent">
+                    <div className="tab-pane fade show active" id="nav-library" role="tabpanel" aria-labelledby="nav-library-tab">
+                        
+                    </div>
 
-                <ul id="libraryContents" className="list-group" style={{ display: "none" }}>
-                    <li className="list-group-item disabled">
-                        Aucune librairie découverte...
-                    </li>
-                </ul>
+                   <div className="tab-pane fade" id="nav-backups" role="tabpanel" aria-labelledby="nav-backups-tab">
+                        <BackupContents infos={status}></BackupContents>
+                   </div>
+                    
 
-                <BackupContents infos={status}></BackupContents>
-                <ul id="backupContents" className="list-group" style={{ display: "none" }}>
-                    <li className="list-group-item disabled">
-                        To backup your FinalCut libraries, you must have a disk named
-                        "FCPSlave". Then restart the software to start backup.
-                    </li>
-                </ul>
+                    <div className="tab-pane fade" id="nav-infos" role="tabpanel" aria-labelledby="nav-infos-tab">
+                        <InformationData props={status}></InformationData>
+                        <DebugInfo data={status} ></DebugInfo>
+                    </div>
 
-                <div id="fcpxContents" style={{ display: "none" }}>
-                    No FCPX backup detected right now.
-                </div>
+                    <div className="tab-pane fade" id="nav-autosave" role="tabpanel" aria-labelledby="nav-autosave-tab">
+                        No FCPX backup detected right now.
+                    </div>
 
-                <div id="informationContents" style={{ display: "none" }}>
-                    <InformationData props={status}></InformationData>
-                    <DebugInfo data={status} ></DebugInfo>
+                 
                 </div>
             </div>
         </div>
