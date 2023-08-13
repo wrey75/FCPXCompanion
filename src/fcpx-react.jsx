@@ -99,7 +99,7 @@ const App = ({ status }) => {
             <div className="row">
                 <nav>
                     <div className="nav nav-tabs" id="nav-tab" role="tablist">
-                        <button className="nav-link active" id="nav-library-tab" data-bs-toggle="tab" data-bs-target="#nav-library" type="button" role="tab" aria-controls="nav-library" aria-selected="true">Librairies (<span id="lib-badge" >0</span>)</button>
+                        <button className="nav-link active" id="nav-library-tab" data-bs-toggle="tab" data-bs-target="#nav-library" type="button" role="tab" aria-controls="nav-library" aria-selected="true">Librairies ({status.fcpxLibraries.length})</button>
                         <button className="nav-link" id="nav-backups-tab" data-bs-toggle="tab" data-bs-target="#nav-backups" type="button" role="tab" aria-controls="nav-backups" aria-selected="false">Backups</button>
                         <button className="nav-link" id="nav-autosave-tab" data-bs-toggle="tab" data-bs-target="#nav-autosave" type="button" role="tab" aria-controls="nav-autosauve" aria-selected="false">Auto saved (<span id="fcpx-badge" >0</span>)</button>
                         <button className="nav-link" id="nav-infos-tab" data-bs-toggle="tab" data-bs-target="#nav-infos" type="button" role="tab" aria-controls="nav-infos" aria-selected="false">Informations</button>

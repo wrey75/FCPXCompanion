@@ -147,7 +147,7 @@ function refreshDisplay(infos) {
             html += "</li>";
         });
         $("#nav-library").html('<ul class="list-group">' + html + '</ul>');
-        $("#lib-badge").text(infos.fcpxLibraries.length);
+        // $("#lib-badge").text(infos.fcpxLibraries.length);
     }
 
     if(infos.fcpxBackups.length > 0){
