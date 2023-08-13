@@ -37,16 +37,16 @@ function warning(type, message) {
     window.myAPI.warning(type, message);
 }
 
-function deleteFile(path) {
-    window.myAPI.unlink(path);
+async function deleteFile(path) {
+    return await window.myAPI.unlink(path);
 }
 
-function shellOpen(path) {
+export function shellOpen(path) {
     window.myAPI.shellOpen(path);
 }
 
-function removeDirectory(path) {
-    window.myAPI.rmdir(path);
+async function removeDirectory(path) {
+    return await window.myAPI.rmdir(path);
 }
 
 
@@ -159,14 +159,14 @@ async function deleteDirectoryContents(path) {
     if (await fileExists(path)) {
         var files = await loadDirectory(path);
         for (var i = 0; i < files.length; i++) {
-            const entry = files[i0];
+            const entry = files[i];
             var full = path + "/" + entry.name;
             if (entry.directory) {
-                deleteDirectoryContents(full);
-                removeDirectory(full);
+                await deleteDirectoryContents(full);
+                await removeDirectory(full);
                 console.log(full + ": rmdir");
             } else {
-                deleteFile(full);
+                await deleteFile(full);
                 console.log(full + ": deleted");
             }
         }
@@ -213,6 +213,14 @@ function countInLibrary(lib) {
     return total;
 }
 
+function physicalIndexOf(index){
+    for(var i = 0; i < fcpxLibraries.length; i++){
+        if(fcpxLibraries[i].index == index) return i;
+    }
+    throw new Error("physicalIndexOf(): conception error!");
+    return -1;
+}
+
 /**
  * Reload the library based on information available at the index. Quite simple
  * way to do.
@@ -220,7 +228,8 @@ function countInLibrary(lib) {
  * @param {number} index
  */
 async function reloadLibrary(index) {
-    fcpxLibraries[index] = await loadLibrary(fcpxLibraries[index].path);
+    const idx = physicalIndexOf(index);
+    fcpxLibraries[idx] = await loadLibrary(fcpxLibraries[idx].path);
 }
 
 /**
@@ -412,6 +421,7 @@ function uniqueName(library) {
 
 function addToLibraries(library) {
     var insertAt = fcpxLibraries.length;
+    library.index = fcpxLibraries.length;
     library.duplicated = false;
     for (var i = 0; i < fcpxLibraries.length; i++) {
         if (library.libraryID === fcpxLibraries[i].libraryID) {
@@ -760,3 +770,14 @@ async function backupIfNeeded(md5) {
 window.myAPI.handleCopyProgress((event, value) => {
     displayMessage = value;
 })
+
+export function deleteEventDirectory(index, subdir) {
+    const idx = physicalIndexOf(index);
+    fcpxLibraries[idx].events.forEach((evt) => {
+        const path = fcpxLibraries[idx].path + "/" + evt.name + "/" + subdir;
+        deleteDirectoryContents(path).then(() => {
+            reloadLibrary(index);
+            refresh();
+        })
+    });
+}

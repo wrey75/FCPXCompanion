@@ -18,8 +18,8 @@ contextBridge.exposeInMainWorld('myAPI', {
   copyFile: (source, dest) => ipcRenderer.invoke("file:copy", source, dest),
   mkdirs: (path, recursive) => ipcRenderer.invoke("dir:mkdir", path, recursive),
   fslink: (ref, newRef) => ipcRenderer.invoke("file:link", ref, newRef),
-  rmdir: (path) => ipcRenderer.send("dir:rmdir", path),
-  unlink: (path) => ipcRenderer.send("file:remove", path),
+  rmdir: (path) => ipcRenderer.invoke("dir:rmdir", path),
+  unlink: (path) => ipcRenderer.invoke("file:remove", path),
   fileWrite: (path, contents) => ipcRenderer.invoke("file:write", path, contents),
   handleCopyProgress: (callback) => ipcRenderer.on('update-copy-progress', callback)
 })

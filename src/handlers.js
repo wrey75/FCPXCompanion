@@ -8,7 +8,7 @@ const { Dirent } = require('fs');
 const sax = require("sax");
 var win;
 
-var verbose = 1;
+var verbose = 0;
 
 /**
  * Loads a directory.
@@ -342,8 +342,8 @@ export function declareHandlers(ipcMain){
     ipcMain.handle("file:copy", (event, src, dest) => handleCopyFile(src, dest, event));
     ipcMain.handle("file:link", (event, ref, newRef) => handleFsLink(ref, newRef));
     ipcMain.handle("dir:mkdir", (event, path, recursive) => handleMakeDirectory(path, recursive));
-    ipcMain.on("file:unlink", (event, path) => handleRemoveFile(path));
-    ipcMain.on("dir:rmdir", (event, path) => handleRemoveDirectory(path));
+    ipcMain.handle("file:remove", (event, path) => handleRemoveFile(path));
+    ipcMain.handle("dir:rmdir", (event, path) => handleRemoveDirectory(path));
     ipcMain.handle("file:write", (event, path, contents) => handleFileWrite(path, contents));
     ipcMain.handle("os:homedir", (event) => os.homedir());
  
