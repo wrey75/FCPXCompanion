@@ -183,7 +183,7 @@ const App = ({ status }) => {
                             </div>
                         </td>
                         <td>
-                            <p><span id="scanText">Scanning...</span></p>
+                            <p><span id="scanText">{status.message}</span></p>
                         </td>
                     </tr>
                 </tbody>

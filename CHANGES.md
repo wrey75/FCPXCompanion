@@ -78,5 +78,11 @@ A complete refactoring using React.
 * v0.80.5: added the bootstrap icons directly via "react-bootstrap-icons".
 * v0.80.6: refactored "auto saved" FCPX libraries.
 
+v0.81.0
+-------
+
+* refactor: complete remove of jQuery.
+
+
 
 

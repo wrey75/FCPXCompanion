@@ -1,7 +1,7 @@
 {
   "name": "fcpxcompanion",
   "productName": "FCPXCompanion",
-  "version": "0.80.6",
+  "version": "0.81.0",
   "description": "An application to backup FCPX librariries",
   "main": ".webpack/main",
   "scripts": {
@@ -45,7 +45,6 @@
     "bootstrap": "^5.3.1",
     "bootstrap-icons": "^1.10.4",
     "electron-squirrel-startup": "^1.0.0",
-    "jquery": "^3.6.1",
     "react": "^18.2.0",
     "react-bootstrap-icons": "^1.10.3",
     "react-dom": "^18.2.0",
