@@ -16,7 +16,7 @@ var rootDisk = null;
 var fileMap = {};
 var extraFiles = [];
 var fcpxLibraries = [];
-var fcpxBackups = []; // The backups made by Apple found
+var autosaved = []; // The backups made by Apple found
 var backupStore;
 var backupList = []; // Libraries to backup...
 var backupDone = -2; // No backup started...
@@ -213,9 +213,9 @@ function countInLibrary(lib) {
     return total;
 }
 
-function physicalIndexOf(index){
-    for(var i = 0; i < fcpxLibraries.length; i++){
-        if(fcpxLibraries[i].index == index) return i;
+function physicalIndexOf(index) {
+    for (var i = 0; i < fcpxLibraries.length; i++) {
+        if (fcpxLibraries[i].index == index) return i;
     }
     throw new Error("physicalIndexOf(): conception error!");
     return -1;
@@ -242,7 +242,7 @@ async function copyDirectory(src, dst, useLinks) {
     var exists = await fileExists(src);
     if (!exists) {
         exists = await fileExists(src + '.localized');
-        if(!exists){
+        if (!exists) {
             throw new Error('The source "' + src + '" does not exists!');
         } else {
             src += '.localized';
@@ -258,10 +258,10 @@ async function copyDirectory(src, dst, useLinks) {
         }
 
         const path = f.symLink ? f.realPath : src + '/' + f.name;
-        if(f.size > 2048 && useLinks){
+        if (f.size > 2048 && useLinks) {
             // Avoid duplicates for media files.
             var infos = await registerFile(path);
-            if(!infos){
+            if (!infos) {
                 throw new Error("File not found: " + path);
             }
             const md5path = await backupIfNeeded(infos.md5);
@@ -462,7 +462,9 @@ async function registerLibrary(path) {
         if (found) {
             // we have a backup, not a real library.
             notice("BACKUP", path);
-            fcpxBackups.push(path);
+            const idx = autosaved.length + 1;
+            autosaved.push({ path: path, index: idx });
+            autosaved.sort((a,b) => (a.path.localeCompare(b.path)));
         } else {
             notice("FCPX", path);
             var library = await loadLibrary(path);
@@ -565,20 +567,22 @@ export function refresh() {
         filesInMap: Object.keys(fileMap).length,
         extraFiles: extraFiles,
         fcpxLibraries: fcpxLibraries,
-        fcpxBackups: fcpxBackups,
+        autosave: {
+            list: autosaved
+        },
         backupStore: (backupStore ? backupStore.libs : []),
         done: false
     };
-   
+
     // Add backup information
-    if(backupDone >= -1){
+    if (backupDone >= -1) {
         infos.backup = {
             directory: storageDirectory,
             done: Math.max(0, backupDone),
             total: backupList.length,
         };
     }
-    
+
     if (scannedDirectories < totalDirectories) {
         // Nothing to do...
     } else if (backupDone == -1) {
@@ -600,16 +604,16 @@ export function refresh() {
 
 // module.exports.refresh = refresh;
 
-function abbreviate(path, maxLength){
-    if(path.length > maxLength) {
+function abbreviate(path, maxLength) {
+    if (path.length > maxLength) {
         while (path.length > maxLength && path.indexOf('/') != -1) {
             const parts = path.split('/');
             var newPath = '';
             var removed = false;
-            for(var j = 0; j < parts.length; j++){
-                if(parts[j] == '...'){
+            for (var j = 0; j < parts.length; j++) {
+                if (parts[j] == '...') {
                     // Nothing to do
-                } else if(!removed && j >= parts.length /2){
+                } else if (!removed && j >= parts.length / 2) {
                     removed = true;
                     newPath += '/...';
                 } else {
@@ -627,7 +631,7 @@ export async function addUserDirectory(path) {
     scanDirectory(path).then(data => {
         nbDirectories += data.length;
         data.forEach(name => {
-            if(name.match('\.(app|photoslibrary)$') || name === 'Backups.backupdb'){
+            if (name.match('\.(app|photoslibrary)$') || name === 'Backups.backupdb') {
                 trace("SKIP", name);
             } else {
                 addUserDirectory(path + '/' + name);

@@ -96,6 +96,15 @@ const LibraryContents = ({ infos }) => {
     </ul>);
 }
 
+const AutosaveList = ({ autosaved }) => {
+    if(!autosaved || autosaved.list.length < 1){
+        return <div>No libraries autosaved by Final Cut Pro found.</div>
+    }
+    return (<div style={{"whiteSpace": 'nowrap'}}>
+        {autosaved.list.map(x => <small key={x.index}>{x.path}<br /></small>)}
+        </div>);
+}
+
 const BackupContents = ({ infos }) => {
     var array = [...Object.values(infos.backupStore)];
     if (array.length == 0) {
@@ -185,7 +194,7 @@ const App = ({ status }) => {
                     <div className="nav nav-tabs" id="nav-tab" role="tablist">
                         <button className="nav-link active" id="nav-library-tab" data-bs-toggle="tab" data-bs-target="#nav-library" type="button" role="tab" aria-controls="nav-library" aria-selected="true">Librairies ({status.fcpxLibraries.length})</button>
                         <button className="nav-link" id="nav-backups-tab" data-bs-toggle="tab" data-bs-target="#nav-backups" type="button" role="tab" aria-controls="nav-backups" aria-selected="false">Backups</button>
-                        <button className="nav-link" id="nav-autosave-tab" data-bs-toggle="tab" data-bs-target="#nav-autosave" type="button" role="tab" aria-controls="nav-autosauve" aria-selected="false">Auto saved (<span id="fcpx-badge" >0</span>)</button>
+                        <button className="nav-link" id="nav-autosave-tab" data-bs-toggle="tab" data-bs-target="#nav-autosave" type="button" role="tab" aria-controls="nav-autosave" aria-selected="false">Auto saved ({status.autosave.list.length})</button>
                         <button className="nav-link" id="nav-infos-tab" data-bs-toggle="tab" data-bs-target="#nav-infos" type="button" role="tab" aria-controls="nav-infos" aria-selected="false">Informations</button>
                     </div>
                 </nav>
@@ -205,7 +214,7 @@ const App = ({ status }) => {
                     </div>
 
                     <div className="tab-pane fade" id="nav-autosave" role="tabpanel" aria-labelledby="nav-autosave-tab">
-                        No FCPX backup detected right now.
+                        <AutosaveList autosaved={status.autosave} />
                     </div>
 
 

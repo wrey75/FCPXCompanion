@@ -75,5 +75,8 @@ A complete refactoring using React.
 * v0.80.3: refactored tab changes to remove jQuery use replaced by Bootrap 5 implementation.
 * v0.80.4: fixed missing key for list of backups.
 * v0.80.5: refactored "libraryContents" (and moved some stuff).
+* v0.80.5: added the bootstrap icons directly via "react-bootstrap-icons".
+* v0.80.6: refactored "auto saved" FCPX libraries.
+
 
 
