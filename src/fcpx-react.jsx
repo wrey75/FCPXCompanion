@@ -8,20 +8,6 @@ const DebugInfo = ({ data }) => {
     )
 }
 
-const SimpleBackup = ({ id, path, first, last, updated, lost }) => {
-    return (
-        <li className="list-group-item" key={id}>
-            <small><code>{id}</code></small><br />
-            <small>{path}</small><br />
-            <small>First scan: {new Date(first).toLocaleDateString()}
-                {last ? (<React.Fragment> Last seen: {new Date(last).toLocaleDateString()}</React.Fragment>) : ''}
-                {updated ? (<React.Fragment>, Last backup: {new Date(updated).toLocaleDateString()}</React.Fragment>) : ''}
-            </small><br />
-            {lost > 0 ? (<React.Fragment><span className="text-danger"><strong>Missing {lost} files</strong></span><br /></React.Fragment>) : ''}
-        </li>
-    );
-}
-
 const BackupContents = ({ infos }) => {
     if (!infos) {
         console.warn("NO DATA AVAILABLE.");
@@ -34,7 +20,15 @@ const BackupContents = ({ infos }) => {
     array.sort((a, b) => a.path.localeCompare(b.id));
     return (
         <ul className="list-group">
-            {array.map((x) => <SimpleBackup id={x.id} path={x.path} first={x.first} last={x.last} updated={x.last} lost={x.lost} />)}
+            {array.map((x) => (<li className="list-group-item" key={x.id}>
+                <small><code>{x.id}</code></small><br />
+                <small>{x.path}</small><br />
+                <small>First scan: {new Date(x.first).toLocaleDateString()}
+                    {x.last ? (<React.Fragment> Last seen: {new Date(x.last).toLocaleDateString()}</React.Fragment>) : ''}
+                    {x.updated ? (<React.Fragment>, Last backup: {new Date(x.updated).toLocaleDateString()}</React.Fragment>) : ''}
+                </small><br />
+                {x.lost > 0 ? (<React.Fragment><span className="text-danger"><strong>Missing {x.lost} files</strong></span><br /></React.Fragment>) : ''}
+            </li>))}
         </ul>
     )
 }
@@ -113,13 +107,13 @@ const App = ({ status }) => {
                 </nav>
                 <div className="tab-content" id="nav-tabContent">
                     <div className="tab-pane fade show active" id="nav-library" role="tabpanel" aria-labelledby="nav-library-tab">
-                        
+
                     </div>
 
-                   <div className="tab-pane fade" id="nav-backups" role="tabpanel" aria-labelledby="nav-backups-tab">
+                    <div className="tab-pane fade" id="nav-backups" role="tabpanel" aria-labelledby="nav-backups-tab">
                         <BackupContents infos={status}></BackupContents>
-                   </div>
-                    
+                    </div>
+
 
                     <div className="tab-pane fade" id="nav-infos" role="tabpanel" aria-labelledby="nav-infos-tab">
                         <InformationData props={status}></InformationData>
@@ -130,7 +124,7 @@ const App = ({ status }) => {
                         No FCPX backup detected right now.
                     </div>
 
-                 
+
                 </div>
             </div>
         </div>

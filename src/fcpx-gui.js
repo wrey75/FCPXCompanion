@@ -183,22 +183,3 @@ function deleteTranscoded(index) {
     deleteEventDirectory(index, "Transcoded Media");
     return false;
 }
-
-// function selectTab(activeTab) {
-//     console.log("tab " + activeTab + " selected.");
-//     $("#tabs .nav-link").each(function (idx) {
-//         $(this).removeClass("active");
-//         $("#" + this.id.substring(0, this.id.length - 3) + "Contents").hide();
-//         $("#tabs #" + activeTab + "Tab").addClass("active");
-//         $("#" + activeTab + "Contents").show();
-//     });
-// }
-
-// jQuery(function () {
-//     ["library", "backup", 'fcpx', "information"].forEach((tab) => {
-//         $("#" + tab + "Tab").on("click", function () {
-//             selectTab(tab);
-//         });
-//     });
-//     selectTab("library");
-// });
