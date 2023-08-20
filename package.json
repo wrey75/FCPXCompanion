@@ -1,7 +1,7 @@
 {
   "name": "fcpxcompanion",
   "productName": "FCPXCompanion",
-  "version": "0.81.0",
+  "version": "0.81.2",
   "description": "An application to backup FCPX librariries",
   "main": ".webpack/main",
   "scripts": {

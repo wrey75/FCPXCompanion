@@ -5,7 +5,7 @@
  *
  */
 
-import { refreshDisplay } from "./fcpx-gui";
+// import { refreshDisplay } from "./fcpx-gui";
 
 // var currentScanned = "/";
 var scanErrors = [];
@@ -598,7 +598,7 @@ export function refresh() {
     }
     infos.message = displayMessage;
     displayMessage += '.';
-    refreshDisplay(infos);
+    // refreshDisplay(infos);
     return infos;
 }
 

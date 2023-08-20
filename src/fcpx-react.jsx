@@ -25,17 +25,22 @@ const DebugInfo = ({ data }) => {
     )
 }
 
-const LostFiles = ({lib}) => {
-    return (<ul>
-        {lib.events.map((x) => <p>{x.name}<small>
-            {x.lost.map(f => <React.Fragment>
-                <br/>
-                <span className="text-secondary">{f.name}</span>
-                <small> (<span className="text-danger">{f.path}</span>)</small>
-                </React.Fragment>
-            )}
-            </small></p>)}
-    </ul>);
+
+const LostEventFiles = ({ event }) => {
+    return (<p>{event.name}
+        {event.lost.map(f => <React.Fragment>
+            <br />
+            <span className="text-secondary">{f.name}</span>
+            <small> (<span className="text-danger">{f.path}</span>)</small>
+        </React.Fragment>
+        )}
+    </p>)
+};
+
+const LostFiles = ({ lib }) => {
+    return (<div>
+        {lib.events.map((x) => { x.lost.length > 0 ? <LostEventFiles event={x} /> : <></> })}
+    </div>);
 }
 
 const LibraryContents = ({ infos }) => {
@@ -74,35 +79,35 @@ const LibraryContents = ({ infos }) => {
             return (<li key={theKey} className={classNames}>
                 {lib.duplicated ? '' : <><small><code>{lib.libraryID}</code></small><br /></>}
                 <b>{lib.name}</b>
-                &nbsp;<a href="#" onClick={() => {shellOpen(lib.path)}}><BoxArrowUpRight/></a>
+                &nbsp;<a href="#" onClick={() => { shellOpen(lib.path) }}><BoxArrowUpRight /></a>
                 &nbsp;<small>({eventText})</small><br />
                 <small>{lib.path}</small><br />
                 <small>
-                {lib.proxySize == 0 ? 'No transcoded media. ' : (<>Transcoded: <b>{proxySizeStr}&nbsp;<a className="text-warning" href="#" onClick={() => {
-                    deleteEventDirectory(lib.index, 'Transcoded Media');
-                }}><EraserFill /></a></b></>)}
-                {lib.renderSize > 0 ? <> Rendered: <b>{renderSizeStr}
-                <a className="text-warning" href="#" onClick={() => deleteEventDirectory(lib.index, 'Render Files')}><EraserFill /></a>
-                </b></>: <> No rendered media. </>}
-                <span className={classColor}>
-                    &nbsp;Media: <b>{totalMediaStr}</b> ({lib.totals.fileCount} files)
-                    {lib.totals.linkCount < 1 ? '' : <> +&nbsp;<b>{linkSizeStr}</b> ({lib.totals.linkCount} links)</>}
-                </span>
+                    {lib.proxySize == 0 ? 'No transcoded media. ' : (<>Transcoded: <b>{proxySizeStr}&nbsp;<a className="text-warning" href="#" onClick={() => {
+                        deleteEventDirectory(lib.index, 'Transcoded Media');
+                    }}><EraserFill /></a></b></>)}
+                    {lib.renderSize > 0 ? <> Rendered: <b>{renderSizeStr}
+                        <a className="text-warning" href="#" onClick={() => deleteEventDirectory(lib.index, 'Render Files')}><EraserFill /></a>
+                    </b></> : <> No rendered media. </>}
+                    <span className={classColor}>
+                        &nbsp;Media: <b>{totalMediaStr}</b> ({lib.totals.fileCount} files)
+                        {lib.totals.linkCount < 1 ? '' : <> +&nbsp;<b>{linkSizeStr}</b> ({lib.totals.linkCount} links)</>}
+                    </span>
                 </small>
                 {totalLost < 1 ? '' : <span className="text-danger"> and {totalLost} lost</span>}
-                {totalLost > 0 && !lib.duplicated ? <LostFiles lib ={lib} /> : ''}
+                {totalLost > 0 && !lib.duplicated ? <LostFiles lib={lib} /> : ''}
             </li>);
         })}
     </ul>);
 }
 
 const AutosaveList = ({ autosaved }) => {
-    if(!autosaved || autosaved.list.length < 1){
+    if (!autosaved || autosaved.list.length < 1) {
         return <div>No libraries autosaved by Final Cut Pro found.</div>
     }
-    return (<div style={{"whiteSpace": 'nowrap'}}>
+    return (<div style={{ "whiteSpace": 'nowrap' }}>
         {autosaved.list.map(x => <small key={x.index}>{x.path}<br /></small>)}
-        </div>);
+    </div>);
 }
 
 const BackupContents = ({ infos }) => {
@@ -210,14 +215,12 @@ const App = ({ status }) => {
 
                     <div className="tab-pane fade" id="nav-infos" role="tabpanel" aria-labelledby="nav-infos-tab">
                         <InformationData props={status}></InformationData>
-                        <DebugInfo data={status} ></DebugInfo>
+                        {/*<DebugInfo data={status} ></DebugInfo>*/}
                     </div>
 
                     <div className="tab-pane fade" id="nav-autosave" role="tabpanel" aria-labelledby="nav-autosave-tab">
                         <AutosaveList autosaved={status.autosave} />
                     </div>
-
-
                 </div>
             </div>
         </div>
