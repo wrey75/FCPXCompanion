@@ -1,7 +1,7 @@
 // See the Electron documentation for details on how to use preload scripts:
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 
-const { contextBridge, ipcRenderer } = require('electron')
+import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('myAPI', {
   loadDirectory: (path) => ipcRenderer.invoke('dir:load', path),
@@ -18,7 +18,9 @@ contextBridge.exposeInMainWorld('myAPI', {
   copyFile: (source, dest) => ipcRenderer.invoke("file:copy", source, dest),
   mkdirs: (path, recursive) => ipcRenderer.invoke("dir:mkdir", path, recursive),
   fslink: (ref, newRef) => ipcRenderer.invoke("file:link", ref, newRef),
-  rmdir: (path) => ipcRenderer.send("dir:rmdir", path),
-  unlink: (path) => ipcRenderer.send("file:remove", path),
-  fileWrite: (path, contents) => ipcRenderer.invoke("file:write", path, contents)
+  rmdir: (path) => ipcRenderer.invoke("dir:rmdir", path),
+  unlink: (path) => ipcRenderer.invoke("file:remove", path),
+  fileWrite: (path, contents) => ipcRenderer.invoke("file:write", path, contents),
+  handleCopyProgress: (callback) => ipcRenderer.on('update-copy-progress', callback),
+  setTitle: (type, title) => ipcRenderer.send("set-title", type, title),
 })

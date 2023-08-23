@@ -26,7 +26,6 @@ To backup a library efficiently, you have to backup:
   also available at the uer's level where the added templates are set. 
 - The events which are basically directories directly stored inside the library folder.
 
-
 In each event, you have to save:
 
 - the _media files_ (stored in the directory `Original Media` directory.
