@@ -7,7 +7,7 @@ Beta release
 * Backup in the `FCPBackup` disk.
 * Control of duplicate libraries
 * Use of `store.json` for storage of library information.
-* Saves the linked files in `Folders` directory of the `BackupStore`. 
+* Saves the linked files in `Folders` directory of the `BackupStore`.
 * Display of lost links.
 
 v0.20.0
@@ -85,6 +85,14 @@ v0.82.0
 * refactor: remove of fcpx-gui.
 * refactor: now on electron forge + webpack
 * bug: when scan is done, no stop if the disk of backup is missing.
+* bug: no JS for switching the tabs.
 
+v0.83.0
+-------
 
-
+* refactor: added bootstrap for react
+* fix: correct message when scan or backup is done.
+* fix: now tabs uses the react &lg;Tab&gt; tag from React
+* feat: closing the window closes the application (as for FCPX...) which is not the way MacOS works.
+* fix: the version of the software is now displayed in the title bar.
+* feat: the console tool does appear only in debug mode.

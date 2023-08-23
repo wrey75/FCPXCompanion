@@ -26,11 +26,7 @@
  * ```
  */
 
-// Import our custom CSS
-import './scss/styles.scss'
 
-// Import all of Bootstrap's JS
-import './index.css';
 
 console.log('👋 This message is being logged by "renderer.js", included via webpack');
 

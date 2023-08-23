@@ -591,12 +591,14 @@ export function refresh() {
             });
         });
     } else if (backupDone == backupList.length) {
+        displayMessage = "Everything backuped. You can exit.";
+        infos.done = true;
+    } else if (backupDone == -2) {
         displayMessage = "Everything scanned. You can exit.";
         infos.done = true;
     }
     infos.message = displayMessage;
-    displayMessage += '.';
-    // refreshDisplay(infos);
+    displayMessage += infos.done ? '' : '.';
     return infos;
 }
 

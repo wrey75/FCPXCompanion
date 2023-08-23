@@ -21,5 +21,6 @@ contextBridge.exposeInMainWorld('myAPI', {
   rmdir: (path) => ipcRenderer.invoke("dir:rmdir", path),
   unlink: (path) => ipcRenderer.invoke("file:remove", path),
   fileWrite: (path, contents) => ipcRenderer.invoke("file:write", path, contents),
-  handleCopyProgress: (callback) => ipcRenderer.on('update-copy-progress', callback)
+  handleCopyProgress: (callback) => ipcRenderer.on('update-copy-progress', callback),
+  setTitle: (type, title) => ipcRenderer.send("set-title", type, title),
 })

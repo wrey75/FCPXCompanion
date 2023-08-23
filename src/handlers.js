@@ -323,7 +323,8 @@ function handleScanPList(path) {
 
 export function declareHandlers(ipcMain){
     ipcMain.on('set-title', (event, title) => {
-        const webContents = event.sender
+        console.warn("Set title: " + title);
+        const webContents = event.sender;
         const win = BrowserWindow.fromWebContents(webContents)
         win.setTitle("FCPX Companion v." + app.getVersion())
     })
@@ -346,7 +347,6 @@ export function declareHandlers(ipcMain){
     ipcMain.handle("dir:rmdir", (event, path) => handleRemoveDirectory(path));
     ipcMain.handle("file:write", (event, path, contents) => handleFileWrite(path, contents));
     ipcMain.handle("os:homedir", (event) => os.homedir());
- 
 }
 
 

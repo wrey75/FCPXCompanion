@@ -1,4 +1,6 @@
 import React from "react";
+import Tab from 'react-bootstrap/Tab';
+import Tabs from 'react-bootstrap/Tabs';
 import { EraserFill, BoxArrowUpRight } from 'react-bootstrap-icons';
 import { shellOpen, deleteEventDirectory } from "./fcpx-scanner";
 
@@ -87,7 +89,7 @@ const LibraryContents = ({ infos }) => {
                         deleteEventDirectory(lib.index, 'Transcoded Media');
                     }}><EraserFill /></a></b></>)}
                     {lib.renderSize > 0 ? <> Rendered: <b>{renderSizeStr}
-                        <a className="text-warning" href="#" onClick={() => deleteEventDirectory(lib.index, 'Render Files')}><EraserFill /></a>
+                        <a className="text-warning" href="#" onClick={() => deleteEventDirectory(lib.index, 'Render Files')}>&nbsp;<EraserFill /></a>
                     </b></> : <> No rendered media. </>}
                     <span className={classColor}>
                         &nbsp;Media: <b>{totalMediaStr}</b> ({lib.totals.fileCount} files)
@@ -160,9 +162,9 @@ const InformationData = ({ props }) => {
 }
 
 const App = ({ status }) => {
-    // if(!status){
-    //     return (<div>Initialising...</div>);
-    // }
+    if(!status){
+        return (<div>Initialising...</div>);
+    }
     return (
         <div className="container">
             <h1>FCPX Companion</h1>
@@ -183,7 +185,7 @@ const App = ({ status }) => {
                 <tbody>
                     <tr>
                         <td width="80" height="80">
-                            <div id="spinner" className="spinner-border" role="status">
+                            <div id="spinner" className={`spinner-border ${(status.done || false) ? ' visually-hidden' : ''}`} role="status">
                                 <span className="visually-hidden">Loading...</span>
                             </div>
                         </td>
@@ -193,36 +195,21 @@ const App = ({ status }) => {
                     </tr>
                 </tbody>
             </table>
-
-            <div className="row">
-                <nav>
-                    <div className="nav nav-tabs" id="nav-tab" role="tablist">
-                        <button className="nav-link active" id="nav-library-tab" data-bs-toggle="tab" data-bs-target="#nav-library" type="button" role="tab" aria-controls="nav-library" aria-selected="true">Librairies ({status.fcpxLibraries.length})</button>
-                        <button className="nav-link" id="nav-backups-tab" data-bs-toggle="tab" data-bs-target="#nav-backups" type="button" role="tab" aria-controls="nav-backups" aria-selected="false">Backups</button>
-                        <button className="nav-link" id="nav-autosave-tab" data-bs-toggle="tab" data-bs-target="#nav-autosave" type="button" role="tab" aria-controls="nav-autosave" aria-selected="false">Auto saved ({status.autosave.list.length})</button>
-                        <button className="nav-link" id="nav-infos-tab" data-bs-toggle="tab" data-bs-target="#nav-infos" type="button" role="tab" aria-controls="nav-infos" aria-selected="false">Informations</button>
-                    </div>
-                </nav>
-                <div className="tab-content" id="nav-tabContent">
-                    <div className="tab-pane fade show active" id="nav-library" role="tabpanel" aria-labelledby="nav-library-tab">
-                        <LibraryContents infos={status} />
-                    </div>
-
-                    <div className="tab-pane fade" id="nav-backups" role="tabpanel" aria-labelledby="nav-backups-tab">
-                        <BackupContents infos={status}></BackupContents>
-                    </div>
-
-
-                    <div className="tab-pane fade" id="nav-infos" role="tabpanel" aria-labelledby="nav-infos-tab">
-                        <InformationData props={status}></InformationData>
-                        {/*<DebugInfo data={status} ></DebugInfo>*/}
-                    </div>
-
-                    <div className="tab-pane fade" id="nav-autosave" role="tabpanel" aria-labelledby="nav-autosave-tab">
-                        <AutosaveList autosaved={status.autosave} />
-                    </div>
-                </div>
-            </div>
+            <Tabs>
+                <Tab eventKey="library" title={'Librairies (' + status.fcpxLibraries.length + ')'}>
+                    <LibraryContents infos={status} />
+                </Tab>
+                <Tab  eventKey="backups" title="Backups">
+                    <BackupContents infos={status}></BackupContents>
+                </Tab>
+                <Tab eventKey="autosave" title={'Auto saved (' + status.autosave.list.length+ ')'}>
+                    <AutosaveList autosaved={status.autosave} />
+                </Tab>
+                <Tab eventKey="infos" title="Informations">
+                    <InformationData props={status}></InformationData>
+                    {/*<DebugInfo data={status} ></DebugInfo>*/}
+                </Tab>
+            </Tabs>
         </div>
     );
 }
