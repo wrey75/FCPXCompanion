@@ -5,9 +5,7 @@
  *
  */
 
-// import { refreshDisplay } from "./fcpx-gui";
 
-// var currentScanned = "/";
 var scanErrors = [];
 var nbDirectories = 0;
 var scannedDirectories = 0;

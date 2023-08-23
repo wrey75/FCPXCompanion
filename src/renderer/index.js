@@ -30,7 +30,6 @@
 import './scss/styles.scss'
 
 // Import all of Bootstrap's JS
-import * as bootstrap from 'bootstrap'
 import './index.css';
 
 console.log('👋 This message is being logged by "renderer.js", included via webpack');

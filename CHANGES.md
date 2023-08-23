@@ -78,12 +78,13 @@ A complete refactoring using React.
 * v0.80.5: added the bootstrap icons directly via "react-bootstrap-icons".
 * v0.80.6: refactored "auto saved" FCPX libraries.
 
-v0.81.2
+v0.82.0
 -------
 
 * refactor: complete remove of jQuery.
 * refactor: remove of fcpx-gui.
-
+* refactor: now on electron forge + webpack
+* bug: when scan is done, no stop if the disk of backup is missing.
 
 
 
