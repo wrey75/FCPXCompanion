@@ -96,3 +96,15 @@ v0.83.0
 * feat: closing the window closes the application (as for FCPX...) which is not the way MacOS works.
 * fix: the version of the software is now displayed in the title bar.
 * feat: the console tool does appear only in debug mode.
+
+v0.85.0
+-------
+
+* fix: display of lost files (React issue).
+* fix: opening the FCPX library via the button will not scroll up the screen anymore.
+* fix: in the tab "Backups", data could be totally incorrect under some circumstances.
+* feat: the backup store file is saved once modified (when a library is added to the backup list).
+* fix: when a library is moved, then the backup store reflect silently the change.
+
+
+

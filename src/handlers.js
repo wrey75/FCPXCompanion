@@ -8,7 +8,7 @@ const { Dirent } = require('fs');
 const sax = require("sax");
 var win;
 
-var verbose = 0;
+var verbose = 1;
 
 /**
  * Loads a directory.
@@ -323,7 +323,7 @@ function handleScanPList(path) {
 
 export function declareHandlers(ipcMain){
     ipcMain.on('set-title', (event, title) => {
-        console.warn("Set title: " + title);
+        // console.warn("Set title: " + title);
         const webContents = event.sender;
         const win = BrowserWindow.fromWebContents(webContents)
         win.setTitle("FCPX Companion v." + app.getVersion())
@@ -339,7 +339,10 @@ export function declareHandlers(ipcMain){
     ipcMain.handle("file:stat", (event, path) => handleFileStats(path));
     ipcMain.handle("file:exists", (event, path) => handleFileExists(path));
     ipcMain.handle("file:read", (event, path) => handleFileRead(path));
-    ipcMain.handle("file:plist", (event, path) => handleScanPList(path));
+    ipcMain.handle("file:plist", async (event, path) => {
+        const result = await handleScanPList(path);
+        return result;
+    });
     ipcMain.handle("file:copy", (event, src, dest) => handleCopyFile(src, dest, event));
     ipcMain.handle("file:link", (event, ref, newRef) => handleFsLink(ref, newRef));
     ipcMain.handle("dir:mkdir", (event, path, recursive) => handleMakeDirectory(path, recursive));

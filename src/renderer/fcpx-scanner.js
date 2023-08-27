@@ -21,7 +21,6 @@ var backupDone = -2; // No backup started...
 var displayMessage = 'Starting...';
 
 const BACKUP_DIR = '/Volumes/FCPSlave';
-// const BACKUP_DIR = "/Users/Shared/FCPSlave"; // For test purposes only
 
 function trace(type, message) {
     window.myAPI.trace(type, message);
@@ -52,30 +51,30 @@ async function homedir() {
     return await window.myAPI.homedir();
 }
 
-async function scanPList(path) {
-    return await window.myAPI.scanPList(path);
+function scanPList(path) {
+    return window.myAPI.scanPList(path);
 }
 
 async function fileStats(path) {
     return await window.myAPI.fileStats(path);
 }
 
-async function fileExists(path) {
-    return await window.myAPI.fileExists(path);
+function fileExists(path) {
+    return window.myAPI.fileExists(path);
 }
 
 async function mkdirs(path, recursive) {
     return await window.myAPI.mkdirs(path, recursive);
 }
 
-async function fileWrite(path, contents) {
-    return await window.myAPI.fileWrite(path, contents);
+function fileWrite(path, contents) {
+    return window.myAPI.fileWrite(path, contents);
 }
 
 
-async function fslink(current, newOne) {
+function fslink(current, newOne) {
     // trace('LINK_TO', current + ' --> ' + newOne);
-    return await window.myAPI.fslink(current, newOne);
+    return window.myAPI.fslink(current, newOne);
 }
 
 /**
@@ -401,6 +400,7 @@ async function loadLibrary(path) {
         }
     }
     library.totals = countInLibrary(library);
+    console.log("Loaded library " + library.path);
     return library;
 }
 
@@ -428,13 +428,19 @@ function addToLibraries(library) {
         }
     }
     fcpxLibraries.splice(insertAt, 0, library);
+}
 
+function addToBackups(library) {
     if (backupStore != null && !library.duplicated) {
-        if (backupStore.libs[library.libraryID] && backupStore.libs[library.libraryID].path != library.path) {
+        if (backupStore.libs[library.libraryID]) {
             // We found the same library with a different path...
             library.duplicated = true;
         } else if (backupStore.libs[library.libraryID]) {
             backupStore.libs[library.libraryID].last = new Date().toISOString();
+            if(backupStore.libs[library.libraryID].path != library.path){
+                console.warn("Library moved from " + backupStore.libs[library.libraryID].path + " to " + library.path);
+                backupStore.libs[library.libraryID].path = library.path;
+            }
         } else {
             const now = new Date().toISOString();
             backupStore.libs[library.libraryID] = {
@@ -447,10 +453,8 @@ function addToLibraries(library) {
             };
         }
     }
-}
-
-function addToBackups(lib) {
-    backupList.push(lib);
+    persistBackupStore();
+    backupList.push(library);
 }
 
 async function registerLibrary(path) {
@@ -626,13 +630,22 @@ function abbreviate(path, maxLength) {
     return path;
 }
 
-export async function addUserDirectory(path) {
+/**
+ * Add a directory to be scanned in a asynchronous way.
+ * 
+ * @param {string} path 
+ */
+export function addUserDirectory(path) {
     nbDirectories++;
+    if (path === BACKUP_DIR) {
+        notice("SKIP", path);
+    } 
+    console.log("Added directory " + path);
     scanDirectory(path).then(data => {
         nbDirectories += data.length;
         data.forEach(name => {
-            if (name.match('\.(app|photoslibrary)$') || name === 'Backups.backupdb') {
-                trace("SKIP", name);
+            if (name.match(/\.(app|photoslibrary)$/) || name.match(/^(Applications|private|dev|Library|System|Backups.backupdb)$/)) {
+                notice("SKIP", name + ' in ' + path);
             } else {
                 addUserDirectory(path + '/' + name);
             }
@@ -651,12 +664,16 @@ function isValidDirectory(path) {
 
 var storageDirectory = null;
 
+function persistBackupStore() {
+    console.log("Saving the backup store...", backupStore);
+    fileWrite(storageDirectory + "/store.json", JSON.stringify(backupStore));
+}
+
 export async function checkForBackupDisk() {
     if (await fileExists(BACKUP_DIR)) {
         storageDirectory = BACKUP_DIR + "/BackupStore";
-        if (await fileExists(storageDirectory)) {
+        if (await fileExists(storageDirectory) && await fileExists(storageDirectory + "/store.json")) {
             const data = await fileRead(storageDirectory + "/store.json");
-            notice("JSON", data);
             backupStore = JSON.parse(data);
             if (!backupStore.version || backupStore.version < 2) {
                 const old = backupStore;
@@ -680,15 +697,13 @@ export async function checkForBackupDisk() {
             await mkdirs(storageDirectory + "/Folders", false);
             await fileWrite(storageDirectory + '/.metadata_never_index', '');
         }
-        console.log("SAVE BACKUP STORE.", backupStore);
-        await fileWrite(storageDirectory + "/store.json", JSON.stringify(backupStore));
+        persistBackupStore();
         backupDone = -1;
         return storageDirectory;
     }
     return null;
 }
 
-// module.exports.checkForBackupDisk = checkForBackupDisk;
 
 async function loadDirectory(path) {
     // currentScanned = path;
@@ -701,7 +716,7 @@ async function scanDirectory(path) {
         return [];
     }
     nbDirectories++;
-    trace("SCAN", path);
+    // console.log("Scanning " + path);
     var pathList = [];
     totalDirectories++;
     const files = await loadDirectory(path);
@@ -720,8 +735,6 @@ async function scanDirectory(path) {
             await registerLibrary(fullPath);
         } else if (await isFinalCutCache(fullPath)) {
             notice("CACHE", fullPath);
-        } else if (fullPath.match(/^\/(Backups.backupdb|Applications|private|dev|Library|System)$/i)) {
-            notice("IGNORE", fullPath);
         } else if (entry.directory) {
             dirList.push(entry.name);
         }

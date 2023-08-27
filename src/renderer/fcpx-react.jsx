@@ -2,6 +2,7 @@ import React from "react";
 import Tab from 'react-bootstrap/Tab';
 import Tabs from 'react-bootstrap/Tabs';
 import { EraserFill, BoxArrowUpRight } from 'react-bootstrap-icons';
+import Button from 'react-bootstrap/Button'
 import { shellOpen, deleteEventDirectory } from "./fcpx-scanner";
 
 
@@ -29,8 +30,11 @@ const DebugInfo = ({ data }) => {
 
 
 const LostEventFiles = ({ event }) => {
+    if(event.lost.length == 0){
+        return (<></>);
+    }
     return (<p>{event.name}
-        {event.lost.map(f => <React.Fragment>
+        {event.lost.map(f => <React.Fragment key={f.name}>
             <br />
             <span className="text-secondary">{f.name}</span>
             <small> (<span className="text-danger">{f.path}</span>)</small>
@@ -41,7 +45,7 @@ const LostEventFiles = ({ event }) => {
 
 const LostFiles = ({ lib }) => {
     return (<div>
-        {lib.events.map((x) => { x.lost.length > 0 ? <LostEventFiles event={x} /> : <></> })}
+        {lib.events.map(e => (<LostEventFiles key={e.name} event={e} />))}
     </div>);
 }
 
@@ -81,7 +85,7 @@ const LibraryContents = ({ infos }) => {
             return (<li key={theKey} className={classNames}>
                 {lib.duplicated ? '' : <><small><code>{lib.libraryID}</code></small><br /></>}
                 <b>{lib.name}</b>
-                &nbsp;<a href="#" onClick={() => { shellOpen(lib.path) }}><BoxArrowUpRight /></a>
+                &nbsp;<a onClick={() => { shellOpen(lib.path) }}><BoxArrowUpRight /></a>
                 &nbsp;<small>({eventText})</small><br />
                 <small>{lib.path}</small><br />
                 <small>
@@ -97,7 +101,7 @@ const LibraryContents = ({ infos }) => {
                     </span>
                 </small>
                 {totalLost < 1 ? '' : <span className="text-danger"> and {totalLost} lost</span>}
-                {totalLost > 0 && !lib.duplicated ? <LostFiles lib={lib} /> : ''}
+                {(totalLost > 0 && !lib.duplicated) ? <LostFiles lib={lib} /> : ''}
             </li>);
         })}
     </ul>);
@@ -162,7 +166,7 @@ const InformationData = ({ props }) => {
 }
 
 const App = ({ status }) => {
-    if(!status){
+    if (!status) {
         return (<div>Initialising...</div>);
     }
     return (
@@ -199,10 +203,10 @@ const App = ({ status }) => {
                 <Tab eventKey="library" title={'Librairies (' + status.fcpxLibraries.length + ')'}>
                     <LibraryContents infos={status} />
                 </Tab>
-                <Tab  eventKey="backups" title="Backups">
+                <Tab eventKey="backups" title="Backups">
                     <BackupContents infos={status}></BackupContents>
                 </Tab>
-                <Tab eventKey="autosave" title={'Auto saved (' + status.autosave.list.length+ ')'}>
+                <Tab eventKey="autosave" title={'Auto saved (' + status.autosave.list.length + ')'}>
                     <AutosaveList autosaved={status.autosave} />
                 </Tab>
                 <Tab eventKey="infos" title="Informations">
