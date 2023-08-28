@@ -3,6 +3,7 @@ import Tab from 'react-bootstrap/Tab';
 import Tabs from 'react-bootstrap/Tabs';
 import { EraserFill, BoxArrowUpRight } from 'react-bootstrap-icons';
 import Button from 'react-bootstrap/Button'
+import Spinner from 'react-bootstrap/Spinner';
 import { shellOpen, deleteEventDirectory } from "./fcpx-scanner";
 
 
@@ -30,7 +31,7 @@ const DebugInfo = ({ data }) => {
 
 
 const LostEventFiles = ({ event }) => {
-    if(event.lost.length == 0){
+    if (event.lost.length == 0) {
         return (<></>);
     }
     return (<p>{event.name}
@@ -68,7 +69,9 @@ const LibraryContents = ({ infos }) => {
             const mediaSize = lib.totals.media + lib.totals.linkSize;
             const links = lib.totals.linkCount;
             const totalLost = lib.totals.lost;
-            const classNames = 'list-group-item' + (lib.duplicated ? ' duplicateLib' : '');
+            const classNames = 'list-group-item' + (lib.duplicated ? ' duplicateLib' :
+                (lib.backup == 2 ? ' backuped' :
+                    (lib.backup == 1 ? ' backuping' : '')));
             const theKey = lib.libraryID + (lib.duplicated ? '_' + (++countDuplicates) : '');
             const proxySizeStr = diskSize(lib.proxySize);
             const renderSizeStr = diskSize(lib.renderSize);
@@ -78,7 +81,7 @@ const LibraryContents = ({ infos }) => {
             if (lib.lost.length > 0) {
                 classColor = 'text-danger';
             } else if (lib.backup == 2) {
-                classColor = 'text-success';
+                // classColor = 'text-success';
             } else if (lib.backup == 0) {
                 classColor = 'text-muted';
             }
@@ -147,8 +150,10 @@ const InformationData = ({ props }) => {
             if (props.backup) {
                 backupInfo = (<React.Fragment>
                     <tr><td>Backup Storage:</td><td>{props.backup.directory}</td></tr>
-                    <tr><td>Files backuped:</td><td>{props.backup.done}</td></tr>
-                    <tr><td>Files to backup:</td><td>{props.backup.total}</td></tr>
+                    <tr><td>Libraries backuped:</td><td>{props.backup.done}</td></tr>
+                    <tr><td>Libraries to backup:</td><td>{props.backup.total}</td></tr>
+                    <tr><td>Files already backuped:</td><td>{props.totalBackuped}</td></tr>
+                    <tr><td>Files to backup:</td><td>{props.totalToBackup}</td></tr>
                 </React.Fragment>);
             }
         }
@@ -189,9 +194,7 @@ const App = ({ status }) => {
                 <tbody>
                     <tr>
                         <td width="80" height="80">
-                            <div id="spinner" className={`spinner-border ${(status.done || false) ? ' visually-hidden' : ''}`} role="status">
-                                <span className="visually-hidden">Loading...</span>
-                            </div>
+                            {status.done ? <></> : <Spinner animation="border" role="status"><span className="visually-hidden">Loading...</span></Spinner>}
                         </td>
                         <td>
                             <p><span id="scanText">{status.message}</span></p>

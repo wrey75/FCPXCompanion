@@ -106,5 +106,9 @@ v0.85.0
 * feat: the backup store file is saved once modified (when a library is added to the backup list).
 * fix: when a library is moved, then the backup store reflect silently the change.
 
+v0.90.0
+-------
 
-
+* fix: issue displaying libraries as duplicated if already backuped.
+* feat: keep the power up during the running of the software.
+* refactor: use of &lt;Spinner&gt; from React Bootstrap.

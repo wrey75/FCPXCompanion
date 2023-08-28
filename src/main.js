@@ -1,6 +1,7 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, powerSaveBlocker } = require('electron');
 import { declareHandlers } from './handlers';
 const isDev = require('electron-is-dev');
+var powerId;
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -27,6 +28,7 @@ const createWindow = () => {
 	console.log('Running in development...');
     mainWindow.webContents.openDevTools();
   }
+  powerId = powerSaveBlocker.start('prevent-app-suspension');
 };
 
 // This method will be called when Electron has finished
@@ -38,6 +40,7 @@ app.on('ready', createWindow);
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
+    powerSaveBlocker.stop(powerId);
   // if (process.platform !== 'darwin') {
     app.quit();
   // }
