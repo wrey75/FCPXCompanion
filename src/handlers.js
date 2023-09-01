@@ -8,7 +8,7 @@ const { Dirent } = require('fs');
 const sax = require("sax");
 var win;
 
-var verbose = 0;
+var verbose = 1;
 
 /**
  * Loads a directory.
@@ -213,39 +213,48 @@ function handleRemoveFile(path) {
 function handleCopyFile(src, dst, event) {
     return new Promise((resolve, reject) => {
         if (!fs.existsSync(src)) {
-            resolve(false);
+            reject(`${src}: source does not exists`);
+            return;
         }
 
         const outputDir = path.dirname(dst);
         if (!fs.existsSync(outputDir)) {
             // Create the directory if not exists...
-            throw new Error(outputDir + ": the directory MUST exists for file copy!")
+            reject(outputDir + ": the directory MUST exists for file copy!");
+            return;
         }
 
         // Copy and rename to ensure no partial copy
         fs.stat(src, function (err, stat) {
-            if (err) throw err;
+            if (err) {
+                reject(`${src}: can not stat`);
+                return;
+            }
             const filesize = stat.size;
             let bytesCopied = 0;
+            let previous = 0; 
 
-            const readStream = fs.createReadStream(src,{ highWaterMark: 32 * 1024 * 1024 });
+            const readStream = fs.createReadStream(src,{ highWaterMark: 100 * 1024 });
             const writeStream = fs.createWriteStream(dst + '~');
 
-            readStream.on('data', function (buffer) {
+            readStream.on('data', buffer => {
                 bytesCopied += buffer.length;
-                const percentage = ((bytesCopied / filesize) * 100).toFixed(2);
-                const text = "Copying " + src.replace(/.*\//, '') + ' (' + percentage + '%)...';
-                if(event){
+                if(event && (Date.now() - previous > 1000)){
+                    previous = Date.now();
+                    const percentage = ((bytesCopied / filesize) * 100).toFixed(2);
+                    const text = "Copying " + src.replace(/.*\//, '') + ' (' + percentage + '%)...';
                     const webContents = event.sender;
                     const win = BrowserWindow.fromWebContents(webContents);
                     win.webContents.send('update-copy-progress', text);
                 }
-            })
-            writeStream.on('close', function () {
+            });
+            
+            writeStream.on('close', () => {
                 fs.renameSync(dst + '~', dst);
                 notice("COPIED", src + ' => ' + dst);
                 resolve(true);
-            })
+            });
+
             readStream.pipe(writeStream);
         })
     });
@@ -323,7 +332,7 @@ function handleScanPList(path) {
 
 export function declareHandlers(ipcMain){
     ipcMain.on('set-title', (event, title) => {
-        console.warn("Set title: " + title);
+        // console.warn("Set title: " + title);
         const webContents = event.sender;
         const win = BrowserWindow.fromWebContents(webContents)
         win.setTitle("FCPX Companion v." + app.getVersion())
@@ -335,17 +344,20 @@ export function declareHandlers(ipcMain){
     ipcMain.on('shell:open', (event, path) => {
         shell.openPath(path);
     });
-    ipcMain.handle("file:md5", (event, path) => handleFileSignature(path));
-    ipcMain.handle("file:stat", (event, path) => handleFileStats(path));
-    ipcMain.handle("file:exists", (event, path) => handleFileExists(path));
-    ipcMain.handle("file:read", (event, path) => handleFileRead(path));
-    ipcMain.handle("file:plist", (event, path) => handleScanPList(path));
-    ipcMain.handle("file:copy", (event, src, dest) => handleCopyFile(src, dest, event));
-    ipcMain.handle("file:link", (event, ref, newRef) => handleFsLink(ref, newRef));
-    ipcMain.handle("dir:mkdir", (event, path, recursive) => handleMakeDirectory(path, recursive));
-    ipcMain.handle("file:remove", (event, path) => handleRemoveFile(path));
-    ipcMain.handle("dir:rmdir", (event, path) => handleRemoveDirectory(path));
-    ipcMain.handle("file:write", (event, path, contents) => handleFileWrite(path, contents));
+    ipcMain.handle("file:md5", async (event, path) => handleFileSignature(path));
+    ipcMain.handle("file:stat", async (event, path) => handleFileStats(path));
+    ipcMain.handle("file:exists", async (event, path) => handleFileExists(path));
+    ipcMain.handle("file:read", async (event, path) => handleFileRead(path));
+    ipcMain.handle("file:plist", async (event, path) => {
+        const result = await handleScanPList(path);
+        return result;
+    });
+    ipcMain.handle("file:copy", async (event, src, dest) => handleCopyFile(src, dest, event));
+    ipcMain.handle("file:link", async (event, ref, newRef) => handleFsLink(ref, newRef));
+    ipcMain.handle("dir:mkdir", async (event, path, recursive) => handleMakeDirectory(path, recursive));
+    ipcMain.handle("file:remove", async (event, path) => handleRemoveFile(path));
+    ipcMain.handle("dir:rmdir", async (event, path) => handleRemoveDirectory(path));
+    ipcMain.handle("file:write", async (event, path, contents) => handleFileWrite(path, contents));
     ipcMain.handle("os:homedir", (event) => os.homedir());
 }
 

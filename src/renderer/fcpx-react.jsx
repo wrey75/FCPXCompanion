@@ -2,8 +2,11 @@ import React from "react";
 import Tab from 'react-bootstrap/Tab';
 import Tabs from 'react-bootstrap/Tabs';
 import { EraserFill, BoxArrowUpRight } from 'react-bootstrap-icons';
+import Button from 'react-bootstrap/Button'
+import Spinner from 'react-bootstrap/Spinner';
+import ProgressBar from 'react-bootstrap/ProgressBar';
 import { shellOpen, deleteEventDirectory } from "./fcpx-scanner";
-
+import logo from './application-logo.png';
 
 
 function diskSize(bytes) {
@@ -29,8 +32,11 @@ const DebugInfo = ({ data }) => {
 
 
 const LostEventFiles = ({ event }) => {
+    if (event.lost.length == 0) {
+        return (<></>);
+    }
     return (<p>{event.name}
-        {event.lost.map(f => <React.Fragment>
+        {event.lost.map(f => <React.Fragment key={f.name}>
             <br />
             <span className="text-secondary">{f.name}</span>
             <small> (<span className="text-danger">{f.path}</span>)</small>
@@ -41,7 +47,7 @@ const LostEventFiles = ({ event }) => {
 
 const LostFiles = ({ lib }) => {
     return (<div>
-        {lib.events.map((x) => { x.lost.length > 0 ? <LostEventFiles event={x} /> : <></> })}
+        {lib.events.map(e => (<LostEventFiles key={e.name} event={e} />))}
     </div>);
 }
 
@@ -50,7 +56,7 @@ const LibraryContents = ({ infos }) => {
         console.warn("NO DATA AVAILABLE.");
         return (<></>);
     } else if (infos.fcpxLibraries.length == 0) {
-        return (<div>No library found yet.</div>);
+        return (<div>{infos.found > 0 ? `${infos.found} librariries to register...`: 'No library found yet.'}</div>);
     }
     var countDuplicates = 0;
     return (<ul className="list-group">
@@ -64,7 +70,9 @@ const LibraryContents = ({ infos }) => {
             const mediaSize = lib.totals.media + lib.totals.linkSize;
             const links = lib.totals.linkCount;
             const totalLost = lib.totals.lost;
-            const classNames = 'list-group-item' + (lib.duplicated ? ' duplicateLib' : '');
+            const classNames = 'list-group-item' + (lib.duplicated ? ' duplicateLib' :
+                (lib.backup == 2 ? ' backuped' :
+                    (lib.backup == 1 ? ' backuping' : '')));
             const theKey = lib.libraryID + (lib.duplicated ? '_' + (++countDuplicates) : '');
             const proxySizeStr = diskSize(lib.proxySize);
             const renderSizeStr = diskSize(lib.renderSize);
@@ -74,14 +82,14 @@ const LibraryContents = ({ infos }) => {
             if (lib.lost.length > 0) {
                 classColor = 'text-danger';
             } else if (lib.backup == 2) {
-                classColor = 'text-success';
+                // classColor = 'text-success';
             } else if (lib.backup == 0) {
                 classColor = 'text-muted';
             }
             return (<li key={theKey} className={classNames}>
                 {lib.duplicated ? '' : <><small><code>{lib.libraryID}</code></small><br /></>}
                 <b>{lib.name}</b>
-                &nbsp;<a href="#" onClick={() => { shellOpen(lib.path) }}><BoxArrowUpRight /></a>
+                &nbsp;<a onClick={() => { shellOpen(lib.path) }}><BoxArrowUpRight /></a>
                 &nbsp;<small>({eventText})</small><br />
                 <small>{lib.path}</small><br />
                 <small>
@@ -97,7 +105,7 @@ const LibraryContents = ({ infos }) => {
                     </span>
                 </small>
                 {totalLost < 1 ? '' : <span className="text-danger"> and {totalLost} lost</span>}
-                {totalLost > 0 && !lib.duplicated ? <LostFiles lib={lib} /> : ''}
+                {(totalLost > 0 && !lib.duplicated) ? <LostFiles lib={lib} /> : ''}
             </li>);
         })}
     </ul>);
@@ -143,17 +151,22 @@ const InformationData = ({ props }) => {
             if (props.backup) {
                 backupInfo = (<React.Fragment>
                     <tr><td>Backup Storage:</td><td>{props.backup.directory}</td></tr>
-                    <tr><td>Files backuped:</td><td>{props.backup.done}</td></tr>
-                    <tr><td>Files to backup:</td><td>{props.backup.total}</td></tr>
+                    <tr><td>Libraries backuped:</td><td>{props.backup.done}</td></tr>
+                    <tr><td>Libraries to backup:</td><td>{props.backup.total}</td></tr>
+                    <tr><td>Files already backuped:</td><td>{props.totalBackuped}</td></tr>
+                    <tr><td>Files to backup:</td><td>{props.totalToBackup}</td></tr>
                 </React.Fragment>);
             }
         }
         return (
             <table>
                 <tbody>
-                    <tr><td>Scanned directories:</td><td>{props.scannedDirectories}</td></tr>
-                    <tr><td>Total of directories:</td><td>{props.totalDirectories}</td></tr>
+                    <tr><td>Scanned directories:</td><td>{props.scannedDirs}</td></tr>
+                    <tr><td>Total of directories:</td><td>{props.totalDirs}</td></tr>
                     <tr><td>Registered files:</td><td>{props.filesInMap}</td></tr>
+                    <tr><td>Library found:</td><td>{props.found}</td></tr>
+                    <tr><td>Step:</td><td>{props.step}</td></tr>
+                    <tr><td>Progress:</td><td>{props.progress}</td></tr>
                     {backupInfo}
                 </tbody>
             </table>
@@ -162,32 +175,33 @@ const InformationData = ({ props }) => {
 }
 
 const App = ({ status }) => {
-    if(!status){
+    if (!status) {
         return (<div>Initialising...</div>);
+    }
+    var backupTab = '';
+    var backupAlert = '';
+    if(status.backup){
+        backupTab = (<Tab eventKey="backups" title="Backups"><BackupContents infos={status}></BackupContents></Tab>);
+    } else {
+        backupAlert = <React.Fragment><br/><div class="alert alert-warning" role="alert">Backup disk <strong>FCPSlave</strong> not detected. You must have attach
+        a disk with this name to have your backuped.</div></React.Fragment>;
     }
     return (
         <div className="container">
-            <h1>FCPX Companion</h1>
-
-            <div className="progress" id="scanProgress" style={{ display: "none" }}>
-                <div
-                    className="progress-bar"
-                    role="progressbar"
-                    aria-label="Scanning files"
-                    style={{ width: "50%" }}
-                    aria-valuenow="75"
-                    aria-valuemin="0"
-                    aria-valuemax="100"
-                ></div>
+            <div className="row align-items-start">
+                <div className="col-2"><img src={logo} className="img-fluid" /></div>
+                <div className="col">
+                    <h1>FCPX Companion</h1>
+                    <ProgressBar now={status.progress}  />
+                    {backupAlert}
+                </div>
             </div>
-
+            
             <table>
                 <tbody>
                     <tr>
                         <td width="80" height="80">
-                            <div id="spinner" className={`spinner-border ${(status.done || false) ? ' visually-hidden' : ''}`} role="status">
-                                <span className="visually-hidden">Loading...</span>
-                            </div>
+                            {status.done ? <></> : <Spinner animation="border" role="status"><span className="visually-hidden">Loading...</span></Spinner>}
                         </td>
                         <td>
                             <p><span id="scanText">{status.message}</span></p>
@@ -199,10 +213,8 @@ const App = ({ status }) => {
                 <Tab eventKey="library" title={'Librairies (' + status.fcpxLibraries.length + ')'}>
                     <LibraryContents infos={status} />
                 </Tab>
-                <Tab  eventKey="backups" title="Backups">
-                    <BackupContents infos={status}></BackupContents>
-                </Tab>
-                <Tab eventKey="autosave" title={'Auto saved (' + status.autosave.list.length+ ')'}>
+                {backupTab}
+                <Tab eventKey="autosave" title={'Auto saved (' + status.autosave.list.length + ')'}>
                     <AutosaveList autosaved={status.autosave} />
                 </Tab>
                 <Tab eventKey="infos" title="Informations">

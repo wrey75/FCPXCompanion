@@ -48,7 +48,22 @@ module.exports = [
         loader: 'sass-loader'
       }
     ]
-  }
+  },
+//   {
+//     test: /\.(png|jpe?g)$/,
+//     use: {
+//     loader: 'url',
+//     options: {limit: 25000}
+//     }
+//   }
+  {
+    test: /\.(jpe?g|gif|png|svg)$/i,
+    use: [
+    {
+      loader: 'file-loader',
+    }
+  ]
+}
   /**
    * Typescript Example:
    *

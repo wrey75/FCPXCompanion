@@ -1,7 +1,7 @@
 {
   "name": "fcpxcompanion",
   "productName": "FCPXCompanion",
-  "version": "0.82.0",
+  "version": "0.95.0",
   "description": "An application to backup FCPX librariries",
   "main": ".webpack/main",
   "scripts": {
@@ -34,6 +34,7 @@
     "babel-loader": "^9.1.3",
     "css-loader": "^6.8.1",
     "electron": "25.5.0",
+    "file-loader": "^6.2.0",
     "node-loader": "^2.0.0",
     "postcss-loader": "^7.3.3",
     "sass": "~1.64.2",

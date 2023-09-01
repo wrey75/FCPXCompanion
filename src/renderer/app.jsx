@@ -13,10 +13,9 @@ import './index.css';
 const container = document.getElementById('app');
 const root = createRoot(container); // createRoot(container!) if you use TypeScript
 
-root.render(<App />);
 setInterval(() => {
     const props = refresh(); // <-- Using the old method with manual rendering
-    root.render(<App status={props}/>);
+    root.render(<App status={props} />);
 }, 500);
 
 import './fcpx-renderer.js';
