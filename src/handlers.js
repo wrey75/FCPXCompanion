@@ -234,10 +234,10 @@ function handleCopyFile(src, dst, event) {
             let bytesCopied = 0;
             let previous = 0; 
 
-            const readStream = fs.createReadStream(src,{ highWaterMark: 1024 * 1024 });
+            const readStream = fs.createReadStream(src,{ highWaterMark: 100 * 1024 });
             const writeStream = fs.createWriteStream(dst + '~');
 
-            readStream.on('data', function (buffer) {
+            readStream.on('data', buffer => {
                 bytesCopied += buffer.length;
                 if(event && (Date.now() - previous > 1000)){
                     previous = Date.now();
@@ -249,7 +249,7 @@ function handleCopyFile(src, dst, event) {
                 }
             });
             
-            writeStream.on('close', function () {
+            writeStream.on('close', () => {
                 fs.renameSync(dst + '~', dst);
                 notice("COPIED", src + ' => ' + dst);
                 resolve(true);

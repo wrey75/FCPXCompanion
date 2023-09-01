@@ -5,9 +5,9 @@
  *
  */
 
-
+var currentStep = 0;
 var scanErrors = [];
-var nbDirectories = 0;
+var libraryFound = [];
 var scannedDirectories = 0;
 var totalDirectories = 0;
 var rootDisk = null;
@@ -19,7 +19,7 @@ var backupStore;
 var backupList = []; // Libraries to backup...
 var totalToBackup = 0;
 var totalBackuped = 0;
-var backupDone = -2; // No backup started...
+var storageDirectory = null;
 var displayMessage = 'Starting...';
 
 const BACKUP_DIR = '/Volumes/FCPSlave';
@@ -270,15 +270,18 @@ async function copyDirectory(src, dst, useLinks) {
     }
 }
 
-async function backupLibrary(library) {
+export async function backupLibrary(library) {
     if (storageDirectory == null) {
-        console.log("No FCPBackup disk available.");
+        console.warn("No FCPBackup disk available.");
         return false;
     }
+
     if (library.duplicated) {
         console.warn("Can not backup: duplicate library");
         return false;
     }
+
+    console.log("Backup of " + library.libraryID + '...');
     const libraryName = backupStore.libs[library.libraryID]?.name || uniqueName(library);
     const libraryPath = storageDirectory + '/Libraries/' + libraryName + '.fcpbundle';
     displayMessage = "Backuping " + library.name + "...";
@@ -435,7 +438,7 @@ function addToLibraries(library) {
     fcpxLibraries.splice(insertAt, 0, library);
 }
 
-function addToBackups(library) {
+async function addToBackups(library) {
     if (backupStore != null && !library.duplicated) {
         if (backupStore.libs[library.libraryID]) {
             backupStore.libs[library.libraryID].last = new Date().toISOString();
@@ -459,26 +462,33 @@ function addToBackups(library) {
             totalToBackup += evt.projects.length + evt.links.length + evt.files.length;
         }
     }
-    persistBackupStore();
+    await persistBackupStore();
     backupList.push(library);
 }
 
-async function registerLibrary(path) {
+export async function registerLibrary(path) {
+    console.log("Register library " + path.replace(/.*\//, '') + '...');
     const stats = await fileStats(path);
     if (path.match(/\.fcpbundle$/) && stats.directory) {
+        // console.log("EXISTS __BackupInfo")
         const found = await fileExists(path + "/__BackupInfo.plist");
         if (found) {
             // we have a backup, not a real library.
-            notice("BACKUP", path);
+            notice("AUTOSAVE", path);
             const idx = autosaved.length + 1;
             autosaved.push({ path: path, index: idx });
             autosaved.sort((a, b) => (a.path.localeCompare(b.path)));
+            return null;
         } else {
             notice("FCPX", path);
+            // console.log("LOAD " + path.replace(/.*\//, ''));
             var library = await loadLibrary(path);
+            // console.log("ADD TO LIST " + path.replace(/.*\//, ''));
             addToLibraries(library);
-            addToBackups(library);
-            console.log("Registered library " + library.libraryID);
+            // console.log("ADD TO BACKUP " + path.replace(/.*\//, ''));
+            await addToBackups(library);
+            // console.log("Registered library " + library.libraryID);
+            return library;
         }
     } else {
         console.error(path + ": NOT A LIBRARY??");
@@ -563,14 +573,12 @@ async function directorySize(path) {
  * Refresh display 
  */
 export function refresh() {
-    // console.log("Called refresh() in MAIN");
-
     const infos = {
         // currentScanned: currentScanned,
+        found: libraryFound.length,
         scanErrors: scanErrors,
-        "totalDirectories": totalDirectories,
-        'nbDirectories': nbDirectories,
-        scannedDirectories: scannedDirectories,
+        totalDirs: totalDirectories,
+        scannedDirs: scannedDirectories,
         rootDisk: rootDisk,
         filesInMap: Object.keys(fileMap).length,
         extraFiles: extraFiles,
@@ -581,31 +589,30 @@ export function refresh() {
         backupStore: (backupStore ? backupStore.libs : []),
         totalBackuped: totalBackuped,
         totalToBackup: totalToBackup,
-        done: false
+        done: false,
+        step: currentStep,
     };
 
     // Add backup information
-    if (backupDone >= -1) {
+    var count = 0;
+    fcpxLibraries.forEach(lib => (lib.bakup == 2 ? count++ : 0));
+    const backupDone = count;
+
+    if(storageDirectory != null){
         infos.backup = {
             directory: storageDirectory,
-            done: Math.max(0, backupDone),
+            done: backupDone,
             total: backupList.length,
         };
     }
 
-    if (scannedDirectories < totalDirectories) {
-        // Nothing to do...
-    } else if (backupDone == -1) {
-        backupDone = 0;
-        backupList.forEach(lib => {
-            backupLibrary(lib).then(() => {
-                backupDone++;
-            });
-        });
-    } else if (backupDone == backupList.length) {
-        displayMessage = "Everything backuped. You can exit.";
-        infos.done = true;
-    } else if (backupDone == -2) {
+    const nbLibs = libraryFound.length - autosaved.length;
+    const progress1 = (totalDirectories == 0 ? 0 : (scannedDirectories * 100 / totalDirectories));
+    const progress2 = (nbLibs == 0 ? 0 : fcpxLibraries.length * 100 / nbLibs);
+    const progress3 = (totalToBackup == 0 ? 0 : totalBackuped * 100 / totalToBackup);
+    infos.progress = (progress1 * 20.0 + progress2 * 20.0 + progress3 * 60.0) / (storageDirectory ? 100.0 : 40.0);
+
+    if (currentStep == 100) {
         displayMessage = "Everything scanned. You can exit.";
         infos.done = true;
     }
@@ -613,8 +620,6 @@ export function refresh() {
     displayMessage += infos.done ? '' : '.';
     return infos;
 }
-
-// module.exports.refresh = refresh;
 
 function abbreviate(path, maxLength) {
     if (path.length > maxLength) {
@@ -638,31 +643,35 @@ function abbreviate(path, maxLength) {
     return path;
 }
 
-/**
- * Add a directory to be scanned in a asynchronous way.
- * 
- * @param {string} path 
- */
-export function addUserDirectory(path) {
-    nbDirectories++;
-    if (path === BACKUP_DIR) {
-        notice("SKIP", path);
-    }
-    console.log("Added directory " + path);
-    scanDirectory(path).then(data => {
-        nbDirectories += data.length;
-        data.forEach(name => {
-            if (name.match(/\.(app|photoslibrary)$/) || name.match(/^(Applications|private|dev|Library|System|Backups.backupdb)$/)) {
-                notice("SKIP", name + ' in ' + path);
-            } else {
-                addUserDirectory(path + '/' + name);
-            }
-        });
-        nbDirectories -= (data.length + 1);
-    });
+export async function scanUserDirectories(array) {
+    await Promise.all(array.map(x => scanDirectory(x)));
+    return libraryFound;
 }
 
-// module.exports.addUserDirectory = addUserDirectory;
+// /**
+//  * Add a directory to be scanned in a asynchronous way.
+//  * 
+//  * @param {string} path 
+//  */
+// export function addUserDirectory(path) {
+//     nbDirectories++;
+//     if (path === BACKUP_DIR) {
+//         notice("SKIP", path);
+//     }
+//     console.log("Added directory " + path);
+//     scanDirectory(path).then(data => {
+//         nbDirectories += data.length;
+//         data.forEach(name => {
+//             if (name.match(/\.(app|photoslibrary)$/) || name.match(/^(Applications|private|dev|Library|System|Backups.backupdb)$/)) {
+//                 notice("SKIP", name + ' in ' + path);
+//             } else {
+//                 addUserDirectory(path + '/' + name);
+//             }
+//         });
+//         nbDirectories -= (data.length + 1);
+//     });
+// }
+
 
 function isValidDirectory(path) {
     return (
@@ -670,19 +679,25 @@ function isValidDirectory(path) {
     );
 }
 
-var storageDirectory = null;
-
 /**
  * Persists the backup store.
  */
-function persistBackupStore() {
-    // console.log("Saving the backup store...", backupStore);
-    fileWrite(storageDirectory + "/store-tmp.json", JSON.stringify(backupStore))
-        .then(() => copyFile(storageDirectory + "/store-tmp.json", storageDirectory + "/store.json"))
-        .then(() => deleteFile(storageDirectory + "/store-tmp.json"));
+async function persistBackupStore() {
+    if (storageDirectory != null) {
+        console.log("Saving the backup store...", backupStore);
+        const tmpFile = storageDirectory + "/store-tmp.json";
+        await fileWrite(tmpFile, JSON.stringify(backupStore));
+        await copyFile(tmpFile, storageDirectory + "/store.json");
+        await deleteFile(storageDirectory + "/store-tmp.json");
+    }
+}
+
+export function setCurrentStep(current) {
+    currentStep = current;
 }
 
 export async function checkForBackupDisk() {
+    notice("STEP", "Looking for the backup disk...");
     if (await fileExists(BACKUP_DIR)) {
         storageDirectory = BACKUP_DIR + "/BackupStore";
         if (await fileExists(storageDirectory) && await fileExists(storageDirectory + "/store.json")) {
@@ -710,8 +725,7 @@ export async function checkForBackupDisk() {
             await mkdirs(storageDirectory + "/Folders", false);
             await fileWrite(storageDirectory + '/.metadata_never_index', '');
         }
-        persistBackupStore();
-        backupDone = -1;
+        await persistBackupStore();
         return storageDirectory;
     }
     return null;
@@ -723,38 +737,42 @@ async function loadDirectory(path) {
     return await window.myAPI.loadDirectory(path);
 }
 
-async function scanDirectory(path) {
-    if (path === BACKUP_DIR) {
-        trace("FCPBACKUP", path);
-        return [];
+function asRegEx(s) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function scanDirectory(path) {
+    if (path.match(new RegExp(asRegEx(BACKUP_DIR), 'i'))) {
+        warning("SKIP", path);
+        return Promise.resolve(0);
     }
-    nbDirectories++;
+
     // console.log("Scanning " + path);
-    var pathList = [];
     totalDirectories++;
-    const files = await loadDirectory(path);
-    const dirList = [];
-    for (var i = 0; i < files.length; i++) {
-        displayMessage = 'Scanning ' + abbreviate(path, 80) + '...';
-        const entry = files[i];
-        var fullPath = path.replace(/\/$/, "") + "/" + entry.name;
-        if (entry.name.match(/^\./)) {
-            //console.log("Entry " + fullPath + " ignored.")
-        } else if (isVideoFile(fullPath) && entry.file) {
-            // notice("VIDEO", fullPath);
-            // addToIndex(entry.name, fullPath);
-        } else if (fullPath.match(/\.fcpbundle$/)) {
-            //  console.warn("Scanning libray...")
-            await registerLibrary(fullPath);
-        } else if (await isFinalCutCache(fullPath)) {
-            notice("CACHE", fullPath);
-        } else if (entry.directory) {
-            dirList.push(entry.name);
-        }
-    }
-    scannedDirectories++;
-    nbDirectories--;
-    return dirList;
+    return new Promise((resolve, reject) => {
+        loadDirectory(path).then(files => {
+            const dirList = [];
+            for (var i = 0; i < files.length; i++) {
+                displayMessage = 'Scanning ' + abbreviate(path, 80) + '...';
+                const entry = files[i];
+                var fullPath = path.replace(/\/$/, "") + "/" + entry.name;
+                if (entry.name.match(/^\./)) {
+                    //console.log("Entry " + fullPath + " ignored.")
+                } else if (isVideoFile(fullPath) && entry.file) {
+                    // notice("VIDEO", fullPath);
+                    // addToIndex(entry.name, fullPath);
+                } else if (fullPath.match(/\.fcpbundle$/)) {
+                    libraryFound.push(path + '/' + entry.name);
+                } else if (entry.directory && !(entry.name.match(/\.(app|photoslibrary)$/) || entry.name.match(/^(Applications|private|dev|Library|System|Backups.backupdb)$/))) {
+                    dirList.push(scanDirectory(path + '/' + entry.name));
+                }
+            }
+            Promise.all(dirList).then(array => {
+                resolve(array.length);
+            })
+            scannedDirectories++;
+        })
+    });
 }
 
 

@@ -4,8 +4,9 @@ import Tabs from 'react-bootstrap/Tabs';
 import { EraserFill, BoxArrowUpRight } from 'react-bootstrap-icons';
 import Button from 'react-bootstrap/Button'
 import Spinner from 'react-bootstrap/Spinner';
+import ProgressBar from 'react-bootstrap/ProgressBar';
 import { shellOpen, deleteEventDirectory } from "./fcpx-scanner";
-
+import logo from './application-logo.png';
 
 
 function diskSize(bytes) {
@@ -55,7 +56,7 @@ const LibraryContents = ({ infos }) => {
         console.warn("NO DATA AVAILABLE.");
         return (<></>);
     } else if (infos.fcpxLibraries.length == 0) {
-        return (<div>No library found yet.</div>);
+        return (<div>{infos.found > 0 ? `${infos.found} librariries to register...`: 'No library found yet.'}</div>);
     }
     var countDuplicates = 0;
     return (<ul className="list-group">
@@ -160,9 +161,12 @@ const InformationData = ({ props }) => {
         return (
             <table>
                 <tbody>
-                    <tr><td>Scanned directories:</td><td>{props.scannedDirectories}</td></tr>
-                    <tr><td>Total of directories:</td><td>{props.totalDirectories}</td></tr>
+                    <tr><td>Scanned directories:</td><td>{props.scannedDirs}</td></tr>
+                    <tr><td>Total of directories:</td><td>{props.totalDirs}</td></tr>
                     <tr><td>Registered files:</td><td>{props.filesInMap}</td></tr>
+                    <tr><td>Library found:</td><td>{props.found}</td></tr>
+                    <tr><td>Step:</td><td>{props.step}</td></tr>
+                    <tr><td>Progress:</td><td>{props.progress}</td></tr>
                     {backupInfo}
                 </tbody>
             </table>
@@ -174,22 +178,25 @@ const App = ({ status }) => {
     if (!status) {
         return (<div>Initialising...</div>);
     }
+    var backupTab = '';
+    var backupAlert = '';
+    if(status.backup){
+        backupTab = (<Tab eventKey="backups" title="Backups"><BackupContents infos={status}></BackupContents></Tab>);
+    } else {
+        backupAlert = <React.Fragment><br/><div class="alert alert-warning" role="alert">Backup disk <strong>FCPSlave</strong> not detected. You must have attach
+        a disk with this name to have your backuped.</div></React.Fragment>;
+    }
     return (
         <div className="container">
-            <h1>FCPX Companion</h1>
-
-            <div className="progress" id="scanProgress" style={{ display: "none" }}>
-                <div
-                    className="progress-bar"
-                    role="progressbar"
-                    aria-label="Scanning files"
-                    style={{ width: "50%" }}
-                    aria-valuenow="75"
-                    aria-valuemin="0"
-                    aria-valuemax="100"
-                ></div>
+            <div className="row align-items-start">
+                <div className="col-2"><img src={logo} className="img-fluid" /></div>
+                <div className="col">
+                    <h1>FCPX Companion</h1>
+                    <ProgressBar now={status.progress}  />
+                    {backupAlert}
+                </div>
             </div>
-
+            
             <table>
                 <tbody>
                     <tr>
@@ -206,9 +213,7 @@ const App = ({ status }) => {
                 <Tab eventKey="library" title={'Librairies (' + status.fcpxLibraries.length + ')'}>
                     <LibraryContents infos={status} />
                 </Tab>
-                <Tab eventKey="backups" title="Backups">
-                    <BackupContents infos={status}></BackupContents>
-                </Tab>
+                {backupTab}
                 <Tab eventKey="autosave" title={'Auto saved (' + status.autosave.list.length + ')'}>
                     <AutosaveList autosaved={status.autosave} />
                 </Tab>

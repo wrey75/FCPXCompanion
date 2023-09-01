@@ -112,3 +112,15 @@ v0.90.0
 * fix: issue displaying libraries as duplicated if already backuped.
 * feat: keep the power up during the running of the software.
 * refactor: use of &lt;Spinner&gt; from React Bootstrap.
+
+v0.95.0
+-------
+
+* feat: the scan of the libraries and their backup is now sequential (esier for the end user).
+* fix: issue in saving the store.json
+* refactor: the way the refresh function works. Now the fcpx-renderer code is responsible for synchronisation.
+* refactor: the scan is now fully asynchronously and made _before_ the scan of each library.
+* refactor: the async/Promises are now well understood and well integrated.
+* feat: added a logo for the application in the main screen and reorganized display
+* feat: if the backup disk is not inserted, the display shows an alert and the backup tab is hidden.
+ 
