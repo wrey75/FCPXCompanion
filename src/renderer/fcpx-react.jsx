@@ -56,7 +56,7 @@ const LibraryContents = ({ infos }) => {
         console.warn("NO DATA AVAILABLE.");
         return (<></>);
     } else if (infos.fcpxLibraries.length == 0) {
-        return (<div>{infos.found > 0 ? `${infos.found} librariries to register...`: 'No library found yet.'}</div>);
+        return (<div>{infos.found > 0 ? `${infos.found} libraries to scan...`: 'No library found yet.'}</div>);
     }
     var countDuplicates = 0;
     return (<ul className="list-group">
@@ -70,9 +70,7 @@ const LibraryContents = ({ infos }) => {
             const mediaSize = lib.totals.media + lib.totals.linkSize;
             const links = lib.totals.linkCount;
             const totalLost = lib.totals.lost;
-            const classNames = 'list-group-item' + (lib.duplicated ? ' duplicateLib' :
-                (lib.backup == 2 ? ' backuped' :
-                    (lib.backup == 1 ? ' backuping' : '')));
+            const classNames = 'list-group-item' + (lib.duplicated ? ' duplicateLib' : (lib.backup !== 0 ? ' backup' + lib.backup : ''));
             const theKey = lib.libraryID + (lib.duplicated ? '_' + (++countDuplicates) : '');
             const proxySizeStr = diskSize(lib.proxySize);
             const renderSizeStr = diskSize(lib.renderSize);
@@ -81,7 +79,7 @@ const LibraryContents = ({ infos }) => {
             var classColor = '';
             if (lib.lost.length > 0) {
                 classColor = 'text-danger';
-            } else if (lib.backup == 2) {
+            } else if (lib.backup == 3) {
                 // classColor = 'text-success';
             } else if (lib.backup == 0) {
                 classColor = 'text-muted';
@@ -183,7 +181,7 @@ const App = ({ status }) => {
     if(status.backup){
         backupTab = (<Tab eventKey="backups" title="Backups"><BackupContents infos={status}></BackupContents></Tab>);
     } else {
-        backupAlert = <React.Fragment><br/><div class="alert alert-warning" role="alert">Backup disk <strong>FCPSlave</strong> not detected. You must have attach
+        backupAlert = <React.Fragment><br/><div className="alert alert-warning" role="alert">Backup disk <strong>FCPSlave</strong> not detected. You must have attach
         a disk with this name to have your backuped.</div></React.Fragment>;
     }
     return (
@@ -192,23 +190,12 @@ const App = ({ status }) => {
                 <div className="col-2"><img src={logo} className="img-fluid" /></div>
                 <div className="col">
                     <h1>FCPX Companion</h1>
-                    <ProgressBar now={status.progress}  />
+                    <ProgressBar animated={!status.done} now={status.progress} />
+                    <p><span id="scanText">{status.message}</span></p>
                     {backupAlert}
                 </div>
             </div>
-            
-            <table>
-                <tbody>
-                    <tr>
-                        <td width="80" height="80">
-                            {status.done ? <></> : <Spinner animation="border" role="status"><span className="visually-hidden">Loading...</span></Spinner>}
-                        </td>
-                        <td>
-                            <p><span id="scanText">{status.message}</span></p>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+            <div style={{paddingTop: '6pt'}}></div>
             <Tabs>
                 <Tab eventKey="library" title={'Librairies (' + status.fcpxLibraries.length + ')'}>
                     <LibraryContents infos={status} />

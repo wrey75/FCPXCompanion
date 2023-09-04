@@ -8,7 +8,7 @@ const { Dirent } = require('fs');
 const sax = require("sax");
 var win;
 
-var verbose = 1;
+var verbose = 0;
 
 /**
  * Loads a directory.
@@ -17,13 +17,22 @@ var verbose = 1;
  */
 function handleLoadDirectory(path) {
     return new Promise((resolve, reject) => {
-        if (!fs.existsSync(path)) {
-            warning("NOENT", path);
-            resolve([]);
-        }
+        // if (!fs.existsSync(path)) {
+        //     warning("NOENT", path);
+        //     resolve([]);
+        // }
         fs.readdir(path, { withFileTypes: true }, (err, data) => {
             if (err) {
-                reject(err);
+                warning(err.code, path);
+                switch(err.code){
+                    case 'EPERM':
+                    case 'ENOENT':
+                    case 'EACCES':
+                        resolve([]);
+                        break;
+                    default:
+                        reject(err);
+                }
             } else {
                 const files = [];
                 data.forEach(x => {
@@ -162,9 +171,10 @@ function handleFileRead(path) {
 
 function handleFileWrite(path, contents) {
     return new Promise((resolve, reject) => {
-        fs.writeFile(path, contents,
+        fs.writeFile(path + '~', contents,
             (err) => {
                 if (err) reject(err);
+                fs.renameSync(path + '~', path);
                 resolve(contents.length);
             }
         );
@@ -232,7 +242,7 @@ function handleCopyFile(src, dst, event) {
             }
             const filesize = stat.size;
             let bytesCopied = 0;
-            let previous = 0; 
+            let previous = Date.now(); 
 
             const readStream = fs.createReadStream(src,{ highWaterMark: 100 * 1024 });
             const writeStream = fs.createWriteStream(dst + '~');
