@@ -123,4 +123,10 @@ v0.95.0
 * refactor: the async/Promises are now well understood and well integrated.
 * feat: added a logo for the application in the main screen and reorganized display
 * feat: if the backup disk is not inserted, the display shows an alert and the backup tab is hidden.
- 
+
+v0.96.0
+-------
+
+* fix: ignore many errors when scanning directories (to avoid an error)
+* refactor: write the contents of a file is now made by a first write followed by a rename (like the file copy)
+* fix: the event "CurrentVersion.fcpevent" was not saved (only the projects)

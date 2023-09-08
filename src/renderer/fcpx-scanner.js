@@ -253,20 +253,29 @@ async function copyDirectory(src, dst, useLinks) {
         const f = files[i];
         if (f.directory) {
             // Also copy the subdirectories...
-            await copyDirectory(src + '/' + f.name, dst + '/' + f.name);
-        }
-        const path = f.symLink ? f.realPath : src + '/' + f.name;
-        if (f.size > 2048 && useLinks) {
-            // Avoid duplicates for media files.
-            var infos = await registerFile(path);
-            if (!infos) {
-                throw new Error("File not found: " + path);
-            }
-            const md5path = await backupIfNeeded(infos.md5);
-            await fslink(md5path, dst + '/' + f.name);
+            await copyDirectory(src + '/' + f.name, dst + '/' + f.name, useLinks);
         } else {
-            await copyFile(path, dst + '/' + f.name);
+            const path = f.symLink ? f.realPath : src + '/' + f.name;
+            if (f.size > 2048 && useLinks) {
+                // Avoid duplicates for media files.
+                var infos = await registerFile(path);
+                if (!infos) {
+                    throw new Error("File not found: " + path);
+                }
+                const md5path = await backupIfNeeded(infos.md5);
+                await fslink(md5path, dst + '/' + f.name);
+            } else {
+                await copyFile(path, dst + '/' + f.name);
+            }
         }
+    }
+}
+
+function percent(index, total){
+    if(total == 0){
+        return '0%';
+    } else {
+        return (index * 100.0 / total).toFixed(2) + '%';
     }
 }
 
@@ -289,7 +298,7 @@ export async function backupLibrary(library) {
     library.backup = 1;
     // await mkdirs(folderPath, true);
     await mkdirs(libraryPath, true);
-    // await mkdirs(folderPath + '/Motion Templates');
+    await mkdirs(libraryPath + '/Motion Templates', false);
     await copyDirectory(library.path + '/Motion Templates', libraryPath + '/Motion Templates', false);
     await mkdirs(libraryPath + '/__Temp');
     // await copyFile(library.path + '/CurrentVersion.flexolibrary', folderPath + '/CurrentVersion.flexolibrary');
@@ -302,6 +311,7 @@ export async function backupLibrary(library) {
     await copyFile(library.path + '/Settings.plist', libraryPath + '/Settings.plist');
 
     // await copyFile(library.path + '/__Sync__', libraryPath + '__Sync__');
+    var missingFiles = false;
     for (var i = 0; i < library.events.length; i++) {
         const event = library.events[i];
         // const eventDir = folderPath + '/' + event.name;
@@ -312,8 +322,15 @@ export async function backupLibrary(library) {
         await mkdirs(libraryPath + '/' + event.name + '/Original Media', false);
         await mkdirs(libraryPath + '/' + event.name + '/Transcoded Media', false);
 
+        var total = event.links.length + event.files.length + event.projects.length;
+        var nb = 0;
+        
+        displayMessage = "Backuping " + library.name + '...';
+        await copyFile(library.path + '/' + event.name + '/CurrentVersion.fcpevent', libraryPath + '/' + event.name + '/CurrentVersion.fcpevent');
+
         // Backup the projects in the library
         for (var j = 0; j < event.projects.length; j++) {
+            displayMessage = "Backuping " + library.name + " (" + percent(nb++, total) + ')...';
             // const projectDir = eventDir + '/' + event.projects[j];
             // await mkdirs(projectDir, false);
             await mkdirs(libraryPath + '/' + event.name + '/' + event.projects[j], false);
@@ -321,11 +338,12 @@ export async function backupLibrary(library) {
             await copyFile(library.path + '/' + event.name + '/' + event.projects[j] + '/CurrentVersion.fcpevent', libraryPath + '/' + event.name + '/' + event.projects[j] + '/CurrentVersion.fcpevent');
             totalBackuped++;
         }
-
-        var nb = 0;
+        
+        
         for (var j = 0; j < event.links.length; j++) {
             // warning("CODE", 'Link ' + j);
-            displayMessage = "Backuping " + library.name + "(" + event.links[j].path.replace(/.*\//, '') + ')...';
+            // displayMessage = "Backuping " + library.name + " (" + event.links[j].path.replace(/.*\//, '') + ')...';
+            displayMessage = "Backuping " + library.name + " (" + percent(nb++, total) + ')...';
             const md5path = await backupIfNeeded(event.links[j].md5);
             await fslink(md5path, libraryPath + '/' + event.name + '/Original Media/' + event.links[j].name);
             await mkdirs(dirname(storageDirectory + '/Folders' + event.links[j].resolvedPath), true);
@@ -335,7 +353,8 @@ export async function backupLibrary(library) {
 
         for (var j = 0; j < event.files.length; j++) {
             // warning("CODE", 'File ' + j);
-            displayMessage = "Backuping " + library.name + "(" + event.files[j].path.replace(/.*\//, '') + ')...';
+            // displayMessage = "Backuping " + library.name + " (" + event.files[j].path.replace(/.*\//, '') + ')...';
+            displayMessage = "Backuping " + library.name + " (" + percent(nb++, total) + ')...';
             const md5path = await backupIfNeeded(event.files[j].md5);
             // console.warn(j +':' + md5path + " \\ " + root + event.files[j].path);
             // await mkdirs(dirname(storageDirectory + '/Folders' + event.files[j].path), true);
@@ -346,11 +365,12 @@ export async function backupLibrary(library) {
             await fslink(md5path, destPath + '/' + event.files[j].name);
             totalBackuped++;
         }
+        missingFiles = missingFiles || (event.lost.length > 0);
     }
     backupStore.libs[library.libraryID].updated = new Date().toISOString();
     backupStore.libs[library.libraryID].lost = library.totals.lost;
-    await fileWrite(storageDirectory + "/store.json", JSON.stringify(backupStore));
-    library.backup = 2;
+    await persistBackupStore();
+    library.backup = (library.totals.lost > 0 ? 2 : 3);
     return true;
 }
 
@@ -464,6 +484,23 @@ async function addToBackups(library) {
     }
     await persistBackupStore();
     backupList.push(library);
+}
+
+async function preregister(path) {
+    const stats = await fileStats(path);
+    if (path.match(/\.fcpbundle$/) && stats.directory) {
+        // console.log("EXISTS __BackupInfo")
+        const found = await fileExists(path + "/__BackupInfo.plist");
+        if (found) {
+            // we have a backup, not a real library.
+            notice("AUTOSAVE", path);
+            const idx = autosaved.length + 1;
+            autosaved.push({ path: path, index: idx });
+            autosaved.sort((a, b) => (a.path.localeCompare(b.path)));
+        } else {
+            libraryFound.push(path);
+        }
+    }
 }
 
 export async function registerLibrary(path) {
@@ -606,10 +643,9 @@ export function refresh() {
         };
     }
 
-    const nbLibs = libraryFound.length - autosaved.length;
     const progress1 = (totalDirectories == 0 ? 0 : (scannedDirectories * 100 / totalDirectories));
-    const progress2 = (nbLibs == 0 ? 0 : fcpxLibraries.length * 100 / nbLibs);
-    const progress3 = (totalToBackup == 0 ? 0 : totalBackuped * 100 / totalToBackup);
+    const progress2 = (libraryFound.length == 0 ? 0 : (fcpxLibraries.length * 100 / libraryFound.length));
+    const progress3 = (totalToBackup == 0 ? 0 : (totalBackuped * 100 / totalToBackup));
     infos.progress = (progress1 * 20.0 + progress2 * 20.0 + progress3 * 60.0) / (storageDirectory ? 100.0 : 40.0);
 
     if (currentStep == 100) {
@@ -684,11 +720,11 @@ function isValidDirectory(path) {
  */
 async function persistBackupStore() {
     if (storageDirectory != null) {
-        console.log("Saving the backup store...", backupStore);
-        const tmpFile = storageDirectory + "/store-tmp.json";
-        await fileWrite(tmpFile, JSON.stringify(backupStore));
-        await copyFile(tmpFile, storageDirectory + "/store.json");
-        await deleteFile(storageDirectory + "/store-tmp.json");
+        // console.log("Saving the backup store...", backupStore);
+        // const tmpFile = storageDirectory + "/store-tmp.json";
+        await fileWrite(storageDirectory + "/store.json", JSON.stringify(backupStore));
+        // await copyFile(tmpFile, storageDirectory + "/store.json");
+        // await deleteFile(storageDirectory + "/store-tmp.json");
     }
 }
 
@@ -710,7 +746,7 @@ export async function checkForBackupDisk() {
                     version: 2,
                     libs: {},
                 };
-                console.log("Backup reset.");
+                console.log("Backup store reset.");
             } else {
                 console.log("Backup store loaded.");
             }
@@ -762,7 +798,7 @@ function scanDirectory(path) {
                     // notice("VIDEO", fullPath);
                     // addToIndex(entry.name, fullPath);
                 } else if (fullPath.match(/\.fcpbundle$/)) {
-                    libraryFound.push(path + '/' + entry.name);
+                    preregister(path + '/' + entry.name);
                 } else if (entry.directory && !(entry.name.match(/\.(app|photoslibrary)$/) || entry.name.match(/^(Applications|private|dev|Library|System|Backups.backupdb)$/))) {
                     dirList.push(scanDirectory(path + '/' + entry.name));
                 }
