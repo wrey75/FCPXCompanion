@@ -130,3 +130,12 @@ v0.96.0
 * fix: ignore many errors when scanning directories (to avoid an error)
 * refactor: write the contents of a file is now made by a first write followed by a rename (like the file copy)
 * fix: the event "CurrentVersion.fcpevent" was not saved (only the projects)
+
+v0.97.0
+-------
+
+* feat: better backup of the libraries (issue #4). The directory is rewritten to ensure not adding
+some files renamed or trashed. In addtion, the "missing" files are still kept based on their names
+(when missing files have been resolved once during the backup, they are maintained through the
+backups even if not linked anymore).
+* fix: deletion of a directory contents now deletes the hidden files too.

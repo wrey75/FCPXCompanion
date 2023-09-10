@@ -15,7 +15,7 @@ var verbose = 0;
  * 
  * @param {string} path the path to load
  */
-function handleLoadDirectory(path) {
+function handleLoadDirectory(path, includeHidden) {
     return new Promise((resolve, reject) => {
         // if (!fs.existsSync(path)) {
         //     warning("NOENT", path);
@@ -36,7 +36,7 @@ function handleLoadDirectory(path) {
             } else {
                 const files = [];
                 data.forEach(x => {
-                    if (x.name.substring(0, 1) != '.' && (x.isSymbolicLink() || x.isFile() || x.isDirectory())) {
+                    if ((includeHidden || x.name.substring(0, 1) != '.') && (x.isSymbolicLink() || x.isFile() || x.isDirectory())) {
                         const infos = {
                             path: path + '/' + x.name,
                             directory: x.isDirectory(),
@@ -212,6 +212,18 @@ function handleRemoveFile(path) {
     });
 }
 
+function handleMoveFile(src, dst) {
+    return new Promise((resolve, reject) => {
+        fs.rename(src, dst, err => {
+            if(err){
+                reject(err);
+            } else {
+                resolve(true);
+            }
+        })
+    });
+}
+
 
 /**
  * Copy a file.
@@ -347,7 +359,7 @@ export function declareHandlers(ipcMain){
         const win = BrowserWindow.fromWebContents(webContents)
         win.setTitle("FCPX Companion v." + app.getVersion())
     })
-    ipcMain.handle("dir:load", (event, path) => handleLoadDirectory(path))
+    ipcMain.handle("dir:load", (event, path, includeHidden) => handleLoadDirectory(path, includeHidden))
     ipcMain.on('log:trace', (event, type, message) => trace(type, message));
     ipcMain.on('log:notice', (event, type, message) => notice(type, message));
     ipcMain.on('log:warning', (event, type, message) => warning(type, message));
@@ -366,6 +378,7 @@ export function declareHandlers(ipcMain){
     ipcMain.handle("file:link", async (event, ref, newRef) => handleFsLink(ref, newRef));
     ipcMain.handle("dir:mkdir", async (event, path, recursive) => handleMakeDirectory(path, recursive));
     ipcMain.handle("file:remove", async (event, path) => handleRemoveFile(path));
+    ipcMain.handle("file:move", async (event, src, dest) => handleMoveFile(src, dest));
     ipcMain.handle("dir:rmdir", async (event, path) => handleRemoveDirectory(path));
     ipcMain.handle("file:write", async (event, path, contents) => handleFileWrite(path, contents));
     ipcMain.handle("os:homedir", (event) => os.homedir());

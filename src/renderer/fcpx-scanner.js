@@ -61,6 +61,10 @@ function fileStats(path) {
     return window.myAPI.fileStats(path);
 }
 
+function moveFile(src, dst) {
+    return window.myAPI.moveFile(src, dst);
+}
+
 function fileExists(path) {
     return window.myAPI.fileExists(path);
 }
@@ -156,7 +160,7 @@ async function scanEventFiles(library, event, path, sub) {
  */
 async function deleteDirectoryContents(path) {
     if (await fileExists(path)) {
-        var files = await loadDirectory(path);
+        var files = await loadDirectory(path, true);
         for (var i = 0; i < files.length; i++) {
             const entry = files[i];
             var full = path + "/" + entry.name;
@@ -171,6 +175,7 @@ async function deleteDirectoryContents(path) {
         }
     } else {
         console.log(path + ": not found!");
+        return false;
     }
     return true;
 }
@@ -292,7 +297,8 @@ export async function backupLibrary(library) {
 
     console.log("Backup of " + library.libraryID + '...');
     const libraryName = backupStore.libs[library.libraryID]?.name || uniqueName(library);
-    const libraryPath = storageDirectory + '/Libraries/' + libraryName + '.fcpbundle';
+    const finalLibraryPath = storageDirectory + '/Libraries/' + libraryName + '.fcpbundle';
+    const libraryPath = finalLibraryPath + '~';
     displayMessage = "Backuping " + library.name + "...";
     const folderPath = storageDirectory + '/Folders' + library.path;
     library.backup = 1;
@@ -312,6 +318,7 @@ export async function backupLibrary(library) {
 
     // await copyFile(library.path + '/__Sync__', libraryPath + '__Sync__');
     var missingFiles = false;
+    var nbLostCopied = 0;
     for (var i = 0; i < library.events.length; i++) {
         const event = library.events[i];
         // const eventDir = folderPath + '/' + event.name;
@@ -322,7 +329,7 @@ export async function backupLibrary(library) {
         await mkdirs(libraryPath + '/' + event.name + '/Original Media', false);
         await mkdirs(libraryPath + '/' + event.name + '/Transcoded Media', false);
 
-        var total = event.links.length + event.files.length + event.projects.length;
+        var total = event.links.length + event.files.length + event.projects.length + event.lost.length;
         var nb = 0;
         
         displayMessage = "Backuping " + library.name + '...';
@@ -338,7 +345,6 @@ export async function backupLibrary(library) {
             await copyFile(library.path + '/' + event.name + '/' + event.projects[j] + '/CurrentVersion.fcpevent', libraryPath + '/' + event.name + '/' + event.projects[j] + '/CurrentVersion.fcpevent');
             totalBackuped++;
         }
-        
         
         for (var j = 0; j < event.links.length; j++) {
             // warning("CODE", 'Link ' + j);
@@ -365,10 +371,31 @@ export async function backupLibrary(library) {
             await fslink(md5path, destPath + '/' + event.files[j].name);
             totalBackuped++;
         }
+
+        // Keep the lost files that already exists in the library!
+        for (var j = 0; j < event.lost.length; j++) {
+            displayMessage = "Backuping " + library.name + " (" + percent(nb++, total) + ')...';
+            const original = `${finalLibraryPath}/${event.name}/Original Media/${event.lost[j].name}`;
+            if (await fileExists(original)){
+                const dest = `${libraryPath}/${event.name}/Original Media/${event.lost[j].name}`;
+                await fslink(original, dest);
+                nbLostCopied++;
+            } else {
+                warning("LOST", original);
+            }
+        }
         missingFiles = missingFiles || (event.lost.length > 0);
     }
+
+    displayMessage = `Finalizing the backup of "${library.name}"...`;
+    if(await deleteDirectoryContents(finalLibraryPath)){
+        await removeDirectory(finalLibraryPath);
+    }
+    await moveFile(libraryPath, finalLibraryPath);
+
     backupStore.libs[library.libraryID].updated = new Date().toISOString();
     backupStore.libs[library.libraryID].lost = library.totals.lost;
+    backupStore.libs[library.libraryID].notLost = nbLostCopied;
     await persistBackupStore();
     library.backup = (library.totals.lost > 0 ? 2 : 3);
     return true;
@@ -722,7 +749,7 @@ async function persistBackupStore() {
     if (storageDirectory != null) {
         // console.log("Saving the backup store...", backupStore);
         // const tmpFile = storageDirectory + "/store-tmp.json";
-        await fileWrite(storageDirectory + "/store.json", JSON.stringify(backupStore));
+        await fileWrite(storageDirectory + "/store.json", JSON.stringify(backupStore, null, 2));
         // await copyFile(tmpFile, storageDirectory + "/store.json");
         // await deleteFile(storageDirectory + "/store-tmp.json");
     }
@@ -768,9 +795,9 @@ export async function checkForBackupDisk() {
 }
 
 
-async function loadDirectory(path) {
+async function loadDirectory(path, withHidden = false) {
     // currentScanned = path;
-    return await window.myAPI.loadDirectory(path);
+    return await window.myAPI.loadDirectory(path, withHidden);
 }
 
 function asRegEx(s) {
@@ -803,8 +830,10 @@ function scanDirectory(path) {
                     dirList.push(scanDirectory(path + '/' + entry.name));
                 }
             }
+            totalDirectories += dirList.length;
             Promise.all(dirList).then(array => {
                 resolve(array.length);
+                totalDirectories -= array.length;
             })
             scannedDirectories++;
         })

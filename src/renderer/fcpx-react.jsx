@@ -133,7 +133,8 @@ const BackupContents = ({ infos }) => {
                     {x.last ? (<React.Fragment> Last seen: {new Date(x.last).toLocaleDateString()}</React.Fragment>) : ''}
                     {x.updated ? (<React.Fragment>, Last backup: {new Date(x.updated).toLocaleDateString()}</React.Fragment>) : ''}
                 </small><br />
-                {x.lost > 0 ? (<React.Fragment><span className="text-danger"><strong>Missing {x.lost} files</strong></span><br /></React.Fragment>) : ''}
+                {x.lost > 0 ? (<React.Fragment><span className="text-danger"><strong>Missing {x.lost} files</strong></span></React.Fragment>) : ''}
+                {x.notLost > 0 ? (<small> (but {x.notLost} still there)</small>) : ''}
             </li>))}
         </ul>
     )
@@ -209,6 +210,9 @@ const App = ({ status }) => {
                     {/*<DebugInfo data={status} ></DebugInfo>*/}
                 </Tab>
             </Tabs>
+            <p style={{textAlign: 'center', fontSize:'75%', paddingTop: '18pt'}}>
+                Initiated by the <a href="https://www.cameraclubgeneve.ch/">Caméra Club de Genève</a>.
+            </p>
         </div>
     );
 }
