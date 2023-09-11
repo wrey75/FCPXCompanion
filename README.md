@@ -103,10 +103,3 @@ This is not a big deal because the files are not duplicated (except the basic on
 is lost.
 
 But it is better to remove manually the files duplicated in both `Folders` and `Libraries`.
-
-
-
-
-
-
-  
