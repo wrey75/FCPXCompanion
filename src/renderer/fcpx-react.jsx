@@ -211,7 +211,7 @@ const App = ({ status }) => {
                 </Tab>
             </Tabs>
             <p style={{textAlign: 'center', fontSize:'75%', paddingTop: '18pt'}}>
-                Initiated by the <a href="https://www.cameraclubgeneve.ch/">Caméra Club de Genève</a>.
+                Initiated by the <a target="_blank" href="https://www.cameraclubgeneve.ch/">Caméra Club de Genève</a>.
             </p>
         </div>
     );

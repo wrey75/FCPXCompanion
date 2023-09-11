@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, powerSaveBlocker } = require('electron');
+const { app, BrowserWindow, ipcMain, powerSaveBlocker, shell } = require('electron');
 import { declareHandlers } from './handlers';
 const isDev = require('electron-is-dev');
 var powerId;
@@ -30,6 +30,10 @@ const createWindow = () => {
     mainWindow.webContents.openDevTools();
   }
   powerId = powerSaveBlocker.start('prevent-app-suspension');
+  mainWindow.webContents.setWindowOpenHandler((details) => {
+    shell.openExternal(details.url);
+    return { action: 'deny' }
+  })
 };
 
 // This method will be called when Electron has finished
