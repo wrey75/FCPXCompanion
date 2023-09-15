@@ -91,11 +91,11 @@ const LibraryContents = ({ infos }) => {
                 &nbsp;<small>({eventText})</small><br />
                 <small>{lib.path}</small><br />
                 <small>
-                    {lib.proxySize == 0 ? 'No transcoded media. ' : (<>Transcoded: <b>{proxySizeStr}&nbsp;<a className="text-warning" href="#" onClick={() => {
+                    {lib.proxySize == 0 ? 'No transcoded media. ' : (<>Transcoded: <b>{proxySizeStr}&nbsp;<a className="text-warning" onClick={() => {
                         deleteEventDirectory(lib.index, 'Transcoded Media');
                     }}><EraserFill /></a></b></>)}
                     {lib.renderSize > 0 ? <> Rendered: <b>{renderSizeStr}
-                        <a className="text-warning" href="#" onClick={() => deleteEventDirectory(lib.index, 'Render Files')}>&nbsp;<EraserFill /></a>
+                        <a className="text-warning" onClick={() => deleteEventDirectory(lib.index, 'Render Files')}>&nbsp;<EraserFill /></a>
                     </b></> : <> No rendered media. </>}
                     <span className={classColor}>
                         &nbsp;Media: <b>{totalMediaStr}</b> ({lib.totals.fileCount} files)
