@@ -217,23 +217,19 @@ function countInLibrary(lib) {
     return total;
 }
 
-function physicalIndexOf(index) {
-    for (var i = 0; i < fcpxLibraries.length; i++) {
-        if (fcpxLibraries[i].index == index) return i;
-    }
-    throw new Error("physicalIndexOf(): conception error!");
-    return -1;
-}
-
 /**
  * Reload the library based on information available at the index. Quite simple
  * way to do.
  *
  * @param {number} index
  */
-async function reloadLibrary(index) {
-    const idx = physicalIndexOf(index);
-    fcpxLibraries[idx] = await loadLibrary(fcpxLibraries[idx].path);
+async function reloadLibrary(path) {
+    const refreshedLibrary = await loadLibrary(path);
+    for(var i = 0; i < fcpxLibraries.length; i++){
+        if(fcpxLibraries[i].path === path){
+            fcpxLibraries[i] = refreshedLibrary;
+        }
+    }
 }
 
 /**
@@ -889,7 +885,7 @@ export function deleteEventDirectory(index, subdir) {
     fcpxLibraries[idx].events.forEach((evt) => {
         const path = fcpxLibraries[idx].path + "/" + evt.name + "/" + subdir;
         deleteDirectoryContents(path).then(() => {
-            reloadLibrary(index);
+            reloadLibrary(fcpxLibraries[idx].path);
             refresh();
         })
     });
