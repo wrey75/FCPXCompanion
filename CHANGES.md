@@ -141,3 +141,4 @@ backups even if not linked anymore).
 * fix: deletion of a directory contents now deletes the hidden files too.
 * fix (0.97.1): then link to the "Camera Club de Genève" s'ouvre dans une fenêtre dédiée.
 * fix (0.97.2): fixes possible issue when a sort is done during refresh of a library.
+* fix (0.97.3): new librairies are added at the beginning of the list (rather then the end).

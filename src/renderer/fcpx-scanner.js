@@ -469,7 +469,7 @@ function uniqueName(library) {
 }
 
 function addToLibraries(library) {
-    var insertAt = fcpxLibraries.length;
+    var insertAt = 0;
     library.index = fcpxLibraries.length;
     library.duplicated = false;
     for (var i = 0; i < fcpxLibraries.length; i++) {
