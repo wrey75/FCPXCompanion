@@ -32,7 +32,7 @@ const DebugInfo = ({ data }) => {
 
 
 const LostEventFiles = ({ event }) => {
-    if (event.lost.length == 0) {
+    if (!event.lost || event.lost.length == 0) {
         return (<></>);
     }
     return (<p>{event.name}
@@ -92,10 +92,10 @@ const LibraryContents = ({ infos }) => {
                 <small>{lib.path}</small><br />
                 <small>
                     {lib.proxySize == 0 ? 'No transcoded media. ' : (<>Transcoded: <b>{proxySizeStr}&nbsp;<a className="text-warning" onClick={() => {
-                        deleteEventDirectory(lib.index, 'Transcoded Media');
+                        deleteEventDirectory(lib.index, 'Transcoded Media', true);
                     }}><EraserFill /></a></b></>)}
                     {lib.renderSize > 0 ? <> Rendered: <b>{renderSizeStr}
-                        <a className="text-warning" onClick={() => deleteEventDirectory(lib.index, 'Render Files')}>&nbsp;<EraserFill /></a>
+                        <a className="text-warning" onClick={() => deleteEventDirectory(lib.index, 'Render Files', true)}>&nbsp;<EraserFill /></a>
                     </b></> : <> No rendered media. </>}
                     <span className={classColor}>
                         &nbsp;Media: <b>{totalMediaStr}</b> ({lib.totals.fileCount} files)

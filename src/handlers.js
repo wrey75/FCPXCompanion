@@ -203,8 +203,12 @@ function handleRemoveDirectory(path) {
     });
 }
 
-function handleRemoveFile(path) {
+function handleFileRemove(path, follow) {
     return new Promise((resolve, reject) => {
+        const infos = fs.statSync(path);
+        if(infos.isSymbolicLink() && follow){
+            fs.unlinkSync(infos.realPath);
+        }
         fs.unlink(path, (err, data) => {
             if (err) reject(err);
             resolve(data);
@@ -377,7 +381,7 @@ export function declareHandlers(ipcMain){
     ipcMain.handle("file:copy", async (event, src, dest) => handleCopyFile(src, dest, event));
     ipcMain.handle("file:link", async (event, ref, newRef) => handleFsLink(ref, newRef));
     ipcMain.handle("dir:mkdir", async (event, path, recursive) => handleMakeDirectory(path, recursive));
-    ipcMain.handle("file:remove", async (event, path) => handleRemoveFile(path));
+    ipcMain.handle("file:remove", async (event, path, follow) => handleFileRemove(path, follow));
     ipcMain.handle("file:move", async (event, src, dest) => handleMoveFile(src, dest));
     ipcMain.handle("dir:rmdir", async (event, path) => handleRemoveDirectory(path));
     ipcMain.handle("file:write", async (event, path, contents) => handleFileWrite(path, contents));

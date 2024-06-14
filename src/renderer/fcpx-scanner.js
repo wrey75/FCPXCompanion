@@ -36,8 +36,8 @@ function warning(type, message) {
     window.myAPI.warning(type, message);
 }
 
-function deleteFile(path) {
-    return window.myAPI.unlink(path);
+function deleteFile(path, follow) {
+    return window.myAPI.unlink(path, follow);
 }
 
 export function shellOpen(path) {
@@ -158,18 +158,18 @@ async function scanEventFiles(library, event, path, sub) {
  *
  * @param {string} path the path to delete
  */
-async function deleteDirectoryContents(path) {
+async function deleteDirectoryContents(path, follow) {
     if (await fileExists(path)) {
         var files = await loadDirectory(path, true);
         for (var i = 0; i < files.length; i++) {
             const entry = files[i];
             var full = path + "/" + entry.name;
             if (entry.directory) {
-                await deleteDirectoryContents(full);
+                await deleteDirectoryContents(full, follow);
                 await removeDirectory(full);
                 console.log(full + ": rmdir");
             } else {
-                await deleteFile(full);
+                await deleteFile(full, follow);
                 console.log(full + ": deleted");
             }
         }
@@ -610,7 +610,8 @@ async function directorySize(path) {
         for (var i = 0; i < files.length; i++) {
             const entry = files[i];
             if (entry.symLink) {
-                size += kilobytes(0);
+                const infos = await fileStats(entry.realPath);
+                size += kilobytes(infos.size + 1024); // We add a fictive size for the link
             } else if (entry.directory) {
                 size += await directorySize(path + "/" + entry.name);
             } else {
@@ -880,11 +881,27 @@ window.myAPI.handleCopyProgress((event, value) => {
     displayMessage = value;
 })
 
-export function deleteEventDirectory(index, subdir) {
+function physicalIndexOf(index){
+    for(var i = 0; i < fcpxLibraries.length; i++){
+        if(fcpxLibraries[i].index == index){
+            return i;
+        }
+    }
+    throw new Error("Coding error: should return the physical index!");
+}
+
+/**
+ * or each event of the specified library, delete the contents specified.
+ * 
+ * @param {string} index the index of the library
+ * @param {string} subdir the subdirectory to delete
+ * @param {string} follow true in case of a symbolic link, also delete the file linked.
+ */
+export function deleteEventDirectory(index, subdir, follow) {
     const idx = physicalIndexOf(index);
     fcpxLibraries[idx].events.forEach((evt) => {
         const path = fcpxLibraries[idx].path + "/" + evt.name + "/" + subdir;
-        deleteDirectoryContents(path).then(() => {
+        deleteDirectoryContents(path, follow).then(() => {
             reloadLibrary(fcpxLibraries[idx].path);
             refresh();
         })
